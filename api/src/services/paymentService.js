@@ -1,5 +1,7 @@
 import pool from "../config/database.js";
 import { generateTransactionReference } from "../utils/jwt.js";
+import { NotificationService } from "./notificationService.js";
+import { emitPaymentUpdate } from "../socket/index.js";
 
 export class PaymentService {
   static async createPayment(bookingId, paymentData) {
@@ -105,7 +107,45 @@ export class PaymentService {
       }
 
       await connection.commit();
-      return await this.getPaymentById(paymentId);
+
+      const updatedPayment = await this.getPaymentById(paymentId);
+
+      // Send notifications based on payment status
+      try {
+        if (status === "completed") {
+          await NotificationService.notifyPaymentCompleted(
+            updatedPayment.user_id,
+            {
+              amount: updatedPayment.amount,
+              transaction_reference: updatedPayment.transaction_reference,
+            },
+          );
+
+          emitPaymentUpdate(updatedPayment.user_id, {
+            type: "payment_completed",
+            payment: updatedPayment,
+          });
+        } else if (status === "failed") {
+          await NotificationService.notifyPaymentFailed(
+            updatedPayment.user_id,
+            {
+              amount: updatedPayment.amount,
+            },
+          );
+
+          emitPaymentUpdate(updatedPayment.user_id, {
+            type: "payment_failed",
+            payment: updatedPayment,
+          });
+        }
+      } catch (notificationError) {
+        console.error(
+          "Error sending payment notifications:",
+          notificationError,
+        );
+      }
+
+      return updatedPayment;
     } catch (error) {
       await connection.rollback();
       throw error;

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Menu, Bell, User, LogOut, Search, Settings } from "lucide-react";
+import { Menu, User, LogOut, Search, Settings } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import NotificationBell from "./notifications/NotificationBell";
 
 interface DashboardNavbarProps {
   onMenuClick: () => void;
@@ -72,10 +73,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2 text-slate-500 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition-all duration-200">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell />
 
             {/* Settings */}
             <button className="p-2 text-slate-500 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition-all duration-200">

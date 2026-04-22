@@ -9,12 +9,22 @@ export class AdminService {
 
     // Get total companies
     const [companyStats] = await pool.execute(
-      "SELECT COUNT(*) as total_companies FROM companies WHERE is_verified = true",
+      "SELECT COUNT(*) as total_companies FROM companies",
+    );
+
+    // Get pending companies
+    const [pendingCompanies] = await pool.execute(
+      "SELECT COUNT(*) as pending_companies FROM companies WHERE is_verified = false",
     );
 
     // Get total packages
     const [packageStats] = await pool.execute(
-      "SELECT COUNT(*) as total_packages FROM packages WHERE is_active = true",
+      "SELECT COUNT(*) as total_packages FROM packages",
+    );
+
+    // Get active packages
+    const [activePackages] = await pool.execute(
+      "SELECT COUNT(*) as active_packages FROM packages WHERE is_active = true",
     );
 
     // Get total bookings
@@ -70,7 +80,9 @@ export class AdminService {
       overview: {
         total_users: userStats[0].total_users,
         total_companies: companyStats[0].total_companies,
+        pending_companies: pendingCompanies[0].pending_companies,
         total_packages: packageStats[0].total_packages,
+        active_packages: activePackages[0].active_packages,
         total_bookings: bookingStats[0].total_bookings,
         total_revenue: parseFloat(revenueStats[0].total_revenue),
       },
@@ -110,10 +122,8 @@ export class AdminService {
     }
 
     if (search) {
-      whereConditions.push(
-        "(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)",
-      );
-      queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      whereConditions.push("(u.name LIKE ? OR u.email LIKE ?)");
+      queryParams.push(`%${search}%`, `%${search}%`);
     }
 
     const whereClause =
@@ -125,8 +135,7 @@ export class AdminService {
       `SELECT 
         u.id,
         u.email,
-        u.first_name,
-        u.last_name,
+        u.name,
         u.phone,
         u.profile_image,
         u.is_active,

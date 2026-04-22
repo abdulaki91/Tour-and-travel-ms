@@ -13,9 +13,9 @@ import {
   Settings,
   CreditCard,
   Star,
-  Bell,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import NotificationBell from "./notifications/NotificationBell";
 import clsx from "clsx";
 
 interface SidebarProps {
@@ -241,15 +241,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               </li>
 
               <li>
-                <button className="flex items-center w-full px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group">
+                <div className="flex items-center px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group">
                   <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
-                    <Bell className="w-5 h-5" />
+                    <Settings className="w-5 h-5" />
                   </div>
                   <span className="flex-1">Notifications</span>
-                  <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    3
-                  </span>
-                </button>
+                  <NotificationBell />
+                </div>
               </li>
 
               <li>

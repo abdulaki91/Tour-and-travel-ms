@@ -43,7 +43,7 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
-  const stats = statsData?.data;
+  const stats = statsData?.data?.overview;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -87,9 +87,9 @@ const AdminDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-gray-900 font-display">
                 {stats?.total_companies || 0}
               </p>
-              <p className="text-xs text-warning-600 font-medium bg-warning-100 px-2 py-0.5 rounded-full inline-block mt-1">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-warning-100 to-warning-200 text-warning-800 shadow-sm">
                 {stats?.pending_companies || 0} pending
-              </p>
+              </span>
             </div>
           </div>
         </div>
@@ -106,9 +106,9 @@ const AdminDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-gray-900 font-display">
                 {stats?.total_packages || 0}
               </p>
-              <p className="text-xs text-success-600 font-medium bg-success-100 px-2 py-0.5 rounded-full inline-block mt-1">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-success-100 to-success-200 text-success-800 shadow-sm">
                 {stats?.active_packages || 0} active
-              </p>
+              </span>
             </div>
           </div>
         </div>
@@ -155,7 +155,10 @@ const AdminDashboard: React.FC = () => {
                 Recent Bookings (30 days)
               </span>
               <span className="font-bold text-lg text-success-600">
-                {stats?.recent_bookings || 0}
+                {statsData?.data?.booking_status_distribution?.reduce(
+                  (sum: number, item: any) => sum + item.count,
+                  0,
+                ) || 0}
               </span>
             </div>
           </div>

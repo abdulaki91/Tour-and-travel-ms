@@ -35,6 +35,7 @@ import AdminCompanies from "../pages/admin/AdminCompanies";
 // Other Pages
 import UnauthorizedPage from "../pages/UnauthorizedPage";
 import NotFoundPage from "../pages/NotFoundPage";
+import NotificationsPage from "../pages/NotificationsPage";
 
 // Protected Route Component
 import ProtectedRoute from "./ProtectedRoute";
@@ -120,6 +121,14 @@ const AppRoutes: React.FC = () => {
 
       {/* Error Pages */}
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute roles={["USER", "COMPANY", "ADMIN"]}>
+            <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -10,49 +10,66 @@ import {
   CreditCardIcon,
   ChartBarIcon,
   GlobeAltIcon,
+  BellIcon,
+  HeartIcon,
+  TrophyIcon,
+  FireIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
 import { bookingService } from "../../services/bookings";
+import { useSocket } from "../../context/SocketContext";
 import Button from "../../components/ui/Button";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
+  const { unreadCount } = useSocket();
 
-  const { data: bookingsData } = useQuery({
+  const { data: bookingsData, isLoading } = useQuery({
     queryKey: ["user-bookings"],
-    queryFn: () => bookingService.getUserBookings({ limit: 3 }),
+    queryFn: () => bookingService.getUserBookings({ limit: 5 }),
+  });
+
+  const { data: statsData } = useQuery({
+    queryKey: ["user-stats"],
+    queryFn: () => bookingService.getUserBookings({ limit: 100 }), // Get more for stats
   });
 
   const recentBookings = bookingsData?.data.items || [];
+  const allBookings = statsData?.data.items || [];
 
   const stats = [
     {
       title: "Total Bookings",
-      value: bookingsData?.data.pagination?.total || 0,
+      value: allBookings.length,
       icon: CalendarIcon,
       color: "blue",
       change: "+12%",
+      description: "All time bookings",
     },
     {
       title: "Completed Tours",
-      value: recentBookings.filter((b) => b.status === "COMPLETED").length,
-      icon: MapPinIcon,
+      value: allBookings.filter((b) => b.status === "completed").length,
+      icon: TrophyIcon,
       color: "green",
       change: "+8%",
+      description: "Successfully completed",
     },
     {
       title: "Upcoming Tours",
-      value: recentBookings.filter((b) => b.status === "CONFIRMED").length,
+      value: allBookings.filter((b) => b.status === "confirmed").length,
       icon: ClockIcon,
       color: "orange",
       change: "+3",
+      description: "Confirmed bookings",
     },
     {
       title: "Total Spent",
-      value: `$${recentBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0)}`,
+      value: `$${allBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0).toLocaleString()}`,
       icon: CreditCardIcon,
       color: "purple",
       change: "+15%",
+      description: "Lifetime spending",
     },
   ];
 
@@ -63,6 +80,7 @@ const UserDashboard: React.FC = () => {
       icon: GlobeAltIcon,
       href: "/packages",
       color: "blue",
+      badge: "Popular",
     },
     {
       title: "My Bookings",
@@ -70,15 +88,64 @@ const UserDashboard: React.FC = () => {
       icon: CalendarIcon,
       href: "/user/bookings",
       color: "green",
+      badge: allBookings.length > 0 ? `${allBookings.length}` : null,
+    },
+    {
+      title: "Notifications",
+      description: "Check your latest updates",
+      icon: BellIcon,
+      href: "/notifications",
+      color: "purple",
+      badge: unreadCount > 0 ? `${unreadCount}` : null,
     },
     {
       title: "Profile Settings",
       description: "Update your profile information",
       icon: UserIcon,
       href: "/user/profile",
-      color: "purple",
+      color: "indigo",
+      badge: null,
     },
   ];
+
+  const travelTips = [
+    {
+      icon: StarIcon,
+      title: "Best Time to Visit",
+      description:
+        "October to March offers the best weather for touring East Hararghe.",
+      color: "blue",
+    },
+    {
+      icon: ChartBarIcon,
+      title: "Local Currency",
+      description:
+        "Ethiopian Birr (ETB) is the local currency. USD is widely accepted.",
+      color: "green",
+    },
+    {
+      icon: GlobeAltIcon,
+      title: "Cultural Respect",
+      description:
+        "Dress modestly when visiting religious sites and local communities.",
+      color: "purple",
+    },
+    {
+      icon: HeartIcon,
+      title: "Local Cuisine",
+      description:
+        "Don't miss trying injera with traditional Ethiopian stews and coffee ceremonies.",
+      color: "red",
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -94,6 +161,17 @@ const UserDashboard: React.FC = () => {
                 Ready for your next adventure? Let's explore what's waiting for
                 you.
               </p>
+              {unreadCount > 0 && (
+                <div className="mt-4">
+                  <Link to="/notifications">
+                    <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 animate-pulse">
+                      <BellIcon className="h-5 w-5 mr-2" />
+                      You have {unreadCount} new notification
+                      {unreadCount > 1 ? "s" : ""}
+                    </div>
+                  </Link>
+                </div>
+              )}
             </div>
             <div className="hidden md:block">
               <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl flex items-center justify-center shadow-lg">
@@ -118,8 +196,11 @@ const UserDashboard: React.FC = () => {
                     <p className="text-2xl font-bold text-slate-900">
                       {stat.value}
                     </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {stat.description}
+                    </p>
                     <p
-                      className={`text-xs font-medium ${
+                      className={`text-xs font-medium mt-1 ${
                         stat.change.startsWith("+")
                           ? "text-green-600"
                           : "text-red-600"
@@ -179,10 +260,10 @@ const UserDashboard: React.FC = () => {
                     {recentBookings.map((booking, index) => (
                       <div
                         key={booking.id}
-                        className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                        className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors group"
                       >
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                             <MapPinIcon className="h-6 w-6 text-white" />
                           </div>
                           <div>
@@ -194,21 +275,24 @@ const UserDashboard: React.FC = () => {
                                 booking.booking_date,
                               ).toLocaleDateString()}
                             </p>
+                            <p className="text-xs text-slate-400">
+                              {booking.number_of_people} people
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <div
                             className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                              booking.status === "CONFIRMED"
+                              booking.status === "confirmed"
                                 ? "bg-green-100 text-green-800"
-                                : booking.status === "PENDING"
+                                : booking.status === "pending"
                                   ? "bg-yellow-100 text-yellow-800"
-                                  : booking.status === "COMPLETED"
+                                  : booking.status === "completed"
                                     ? "bg-blue-100 text-blue-800"
                                     : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {booking.status}
+                            {booking.status.toUpperCase()}
                           </div>
                           <p className="text-sm font-semibold text-slate-900 mt-1">
                             ${booking.total_amount}
@@ -229,7 +313,10 @@ const UserDashboard: React.FC = () => {
                       Start exploring our amazing tour packages!
                     </p>
                     <Link to="/packages">
-                      <Button variant="primary">Browse Packages</Button>
+                      <Button variant="primary">
+                        <FireIcon className="h-4 w-4 mr-2" />
+                        Browse Packages
+                      </Button>
                     </Link>
                   </div>
                 )}
@@ -260,7 +347,9 @@ const UserDashboard: React.FC = () => {
                               ? "bg-blue-100 group-hover:bg-blue-200"
                               : action.color === "green"
                                 ? "bg-green-100 group-hover:bg-green-200"
-                                : "bg-purple-100 group-hover:bg-purple-200"
+                                : action.color === "purple"
+                                  ? "bg-purple-100 group-hover:bg-purple-200"
+                                  : "bg-indigo-100 group-hover:bg-indigo-200"
                           }`}
                         >
                           <action.icon
@@ -269,14 +358,23 @@ const UserDashboard: React.FC = () => {
                                 ? "text-blue-600"
                                 : action.color === "green"
                                   ? "text-green-600"
-                                  : "text-purple-600"
+                                  : action.color === "purple"
+                                    ? "text-purple-600"
+                                    : "text-indigo-600"
                             }`}
                           />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                            {action.title}
-                          </h3>
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                              {action.title}
+                            </h3>
+                            {action.badge && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                {action.badge}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-slate-500">
                             {action.description}
                           </p>
@@ -300,53 +398,109 @@ const UserDashboard: React.FC = () => {
               </div>
               <div className="card-content">
                 <div className="space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <StarIcon className="h-4 w-4 text-blue-600" />
+                  {travelTips.map((tip, index) => (
+                    <div key={index} className="flex items-start space-x-3">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          tip.color === "blue"
+                            ? "bg-blue-100"
+                            : tip.color === "green"
+                              ? "bg-green-100"
+                              : tip.color === "purple"
+                                ? "bg-purple-100"
+                                : "bg-red-100"
+                        }`}
+                      >
+                        <tip.icon
+                          className={`h-4 w-4 ${
+                            tip.color === "blue"
+                              ? "text-blue-600"
+                              : tip.color === "green"
+                                ? "text-green-600"
+                                : tip.color === "purple"
+                                  ? "text-purple-600"
+                                  : "text-red-600"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-slate-900">
+                          {tip.title}
+                        </h4>
+                        <p className="text-sm text-slate-500">
+                          {tip.description}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-slate-900">
-                        Best Time to Visit
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        October to March offers the best weather for touring
-                        East Hararghe.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <ChartBarIcon className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-slate-900">
-                        Local Currency
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        Ethiopian Birr (ETB) is the local currency. USD is
-                        widely accepted.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <GlobeAltIcon className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-slate-900">
-                        Cultural Respect
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        Dress modestly when visiting religious sites and local
-                        communities.
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Achievement Section */}
+        {allBookings.length > 0 && (
+          <div className="mt-12">
+            <div className="card animate-fade-in">
+              <div className="card-header">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Your Travel Journey
+                </h2>
+              </div>
+              <div className="card-content">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
+                    <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <TrophyIcon className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-lg font-bold text-blue-900 mb-2">
+                      Explorer
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      You've completed{" "}
+                      {
+                        allBookings.filter((b) => b.status === "completed")
+                          .length
+                      }{" "}
+                      tours
+                    </p>
+                  </div>
+
+                  <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <HeartIcon className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-lg font-bold text-green-900 mb-2">
+                      Adventurer
+                    </h3>
+                    <p className="text-sm text-green-700">
+                      Total of{" "}
+                      {allBookings.reduce(
+                        (sum, b) => sum + (b.number_of_people || 1),
+                        0,
+                      )}{" "}
+                      travelers
+                    </p>
+                  </div>
+
+                  <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
+                    <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <StarIcon className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-lg font-bold text-purple-900 mb-2">
+                      Valued Customer
+                    </h3>
+                    <p className="text-sm text-purple-700">
+                      Member since{" "}
+                      {new Date(user?.created_at || Date.now()).getFullYear()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

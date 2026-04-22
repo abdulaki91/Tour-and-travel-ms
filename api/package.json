@@ -9,7 +9,8 @@
     "dev": "nodemon src/app.js",
     "test": "jest",
     "seed": "node src/scripts/runSeeder.js",
-    "test-backend": "node src/scripts/testBackend.js"
+    "test-backend": "node src/scripts/testBackend.js",
+    "test-socket": "node src/scripts/testSocket.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -1,4 +1,5 @@
 import pool from "../config/database.js";
+import { emitNotificationToUser } from "../socket/index.js";
 
 export class NotificationService {
   static async createNotification(userId, notificationData) {
@@ -9,7 +10,14 @@ export class NotificationService {
       [userId, title, message, type],
     );
 
-    return await this.getNotificationById(result.insertId);
+    const newNotification = await this.getNotificationById(result.insertId);
+
+    // Emit real-time notification with enhanced functionality
+    if (newNotification) {
+      emitNotificationToUser(userId, newNotification);
+    }
+
+    return newNotification;
   }
 
   static async getNotificationById(id) {

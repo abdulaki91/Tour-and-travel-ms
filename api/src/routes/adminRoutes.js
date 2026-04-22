@@ -26,8 +26,9 @@ const companyVerificationValidation = Joi.object({
 router.use(authenticate);
 router.use(authorize("ADMIN"));
 
-// Dashboard
+// Dashboard and Stats
 router.get("/dashboard", AdminController.getDashboard);
+router.get("/stats", AdminController.getDashboard); // Add stats endpoint that uses same controller
 
 // User management
 router.get("/users", AdminController.getAllUsers);

@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -19,6 +20,9 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+
+// Import socket
+import { initSocket } from "./socket/index.js";
 
 // Load environment variables
 dotenv.config();
@@ -97,8 +101,12 @@ const startServer = async () => {
     // Initialize database schema
     await initializeDatabase();
 
+    // Create HTTP server and initialize Socket.io
+    const server = http.createServer(app);
+    initSocket(server);
+
     // Start server
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);

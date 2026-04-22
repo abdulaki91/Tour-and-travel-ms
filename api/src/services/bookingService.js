@@ -1,5 +1,7 @@
 import pool from "../config/database.js";
 import { generateBookingReference } from "../utils/jwt.js";
+import { NotificationService } from "./notificationService.js";
+import { emitBookingUpdate } from "../socket/index.js";
 
 export class BookingService {
   static async createBooking(userId, bookingData) {
@@ -66,7 +68,43 @@ export class BookingService {
 
       await connection.commit();
 
-      return await this.getBookingById(bookingResult.insertId);
+      const newBooking = await this.getBookingById(bookingResult.insertId);
+
+      // Send notifications
+      try {
+        // Notify user about booking confirmation
+        await NotificationService.notifyBookingConfirmed(userId, {
+          package_title: packageInfo.title,
+          booking_reference: booking_reference,
+        });
+
+        // Notify company about new booking
+        const [companyUsers] = await pool.execute(
+          "SELECT u.id FROM users u JOIN companies c ON u.id = c.user_id WHERE c.id = ?",
+          [packageInfo.company_id],
+        );
+
+        if (companyUsers.length > 0) {
+          await NotificationService.notifyNewBooking(companyUsers[0].id, {
+            package_title: packageInfo.title,
+            first_name: newBooking.first_name,
+            last_name: newBooking.last_name,
+          });
+        }
+
+        // Emit real-time updates
+        emitBookingUpdate(userId, {
+          type: "booking_created",
+          booking: newBooking,
+        });
+      } catch (notificationError) {
+        console.error(
+          "Error sending booking notifications:",
+          notificationError,
+        );
+      }
+
+      return newBooking;
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -258,10 +296,52 @@ export class BookingService {
           "UPDATE packages SET available_slots = available_slots + ? WHERE id = ?",
           [booking.number_of_people, booking.package_id],
         );
+
+        // Send cancellation notification
+        try {
+          await NotificationService.notifyBookingCancelled(booking.user_id, {
+            package_title: booking.package_title,
+            booking_reference: booking.booking_reference,
+          });
+
+          // Emit real-time update
+          emitBookingUpdate(booking.user_id, {
+            type: "booking_cancelled",
+            booking: booking,
+          });
+        } catch (notificationError) {
+          console.error(
+            "Error sending cancellation notification:",
+            notificationError,
+          );
+        }
       }
     }
 
-    return await this.getBookingById(id);
+    const updatedBooking = await this.getBookingById(id);
+
+    // Send status update notification for other status changes
+    if (status !== "cancelled" && updatedBooking) {
+      try {
+        await NotificationService.createNotification(updatedBooking.user_id, {
+          title: "Booking Status Updated",
+          message: `Your booking for "${updatedBooking.package_title}" status has been updated to ${status}`,
+          type: "booking_status",
+        });
+
+        emitBookingUpdate(updatedBooking.user_id, {
+          type: "booking_status_updated",
+          booking: updatedBooking,
+        });
+      } catch (notificationError) {
+        console.error(
+          "Error sending status update notification:",
+          notificationError,
+        );
+      }
+    }
+
+    return updatedBooking;
   }
 
   static async cancelBooking(id, userId) {
