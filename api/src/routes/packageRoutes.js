@@ -2,6 +2,10 @@ import express from "express";
 import { PackageController } from "../controllers/packageController.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import {
+  uploadPackageImages,
+  handleUploadError,
+} from "../middlewares/upload.js";
+import {
   validate,
   validateParams,
   validateQuery,
@@ -36,6 +40,8 @@ router.post(
   "/",
   authenticate,
   authorize("COMPANY"),
+  uploadPackageImages,
+  handleUploadError,
   validate(createPackageValidation),
   PackageController.createPackage,
 );
@@ -45,6 +51,8 @@ router.put(
   authenticate,
   authorize("COMPANY"),
   validateParams(idValidation),
+  uploadPackageImages,
+  handleUploadError,
   validate(updatePackageValidation),
   PackageController.updatePackage,
 );

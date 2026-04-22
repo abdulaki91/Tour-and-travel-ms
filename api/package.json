@@ -1,7 +1,7 @@
 {
-  "name": "tour-travel-api",
+  "name": "east-hararghe-tour-api",
   "version": "1.0.0",
-  "description": "Tour and Travel Management System API",
+  "description": "East Hararghe Tour & Travel Management System API",
   "main": "src/app.js",
   "type": "module",
   "scripts": {

@@ -1,4 +1,4 @@
-import { seedDatabase } from "../seeders/seedDataFixed.js";
+import { seedDatabase } from "../seeders/completeSeedData.js";
 import { initializeDatabase } from "../config/database.js";
 
 const runSeeder = async () => {

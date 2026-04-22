@@ -10,12 +10,13 @@ const Footer: React.FC = () => {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
               <MapPin className="h-8 w-8 text-primary-400" />
-              <span className="text-xl font-bold">TravelMS</span>
+              <span className="text-xl font-bold">East Hararghe Tours</span>
             </div>
             <p className="text-gray-300 mb-4">
-              Your trusted partner for unforgettable travel experiences.
-              Discover amazing destinations and create memories that last a
-              lifetime.
+              Discover the rich cultural heritage and natural beauty of East
+              Hararghe Zone, Ethiopia. Experience authentic Oromo culture,
+              explore ancient Harar, and create unforgettable memories in the
+              heart of Ethiopia.
             </p>
             <div className="flex space-x-4">
               {/* Social Media Icons - Using simple SVGs since lucide-react doesn't have brand icons */}
@@ -103,16 +104,18 @@ const Footer: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Mail className="h-5 w-5 text-primary-400" />
-                <span className="text-gray-300">info@travelms.com</span>
+                <span className="text-gray-300">
+                  info@easthararghetours.com
+                </span>
               </div>
               <div className="flex items-center space-x-2">
                 <Phone className="h-5 w-5 text-primary-400" />
-                <span className="text-gray-300">+1 (555) 123-4567</span>
+                <span className="text-gray-300">+251 91 123 4567</span>
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="h-5 w-5 text-primary-400" />
                 <span className="text-gray-300">
-                  123 Travel Street, City, Country
+                  Harar, East Hararghe Zone, Oromia, Ethiopia
                 </span>
               </div>
             </div>
@@ -121,7 +124,8 @@ const Footer: React.FC = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400">
-            © {new Date().getFullYear()} TravelMS. All rights reserved.
+            © {new Date().getFullYear()} East Hararghe Tour & Travel Management
+            System. All rights reserved.
           </p>
         </div>
       </div>

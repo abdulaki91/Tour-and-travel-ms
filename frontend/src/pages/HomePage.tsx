@@ -32,12 +32,12 @@ const HomePage: React.FC = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Discover Your Next
-              <span className="block text-yellow-400">Adventure</span>
+              Discover East Hararghe's
+              <span className="block text-yellow-400">Hidden Treasures</span>
             </h1>
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
-              Explore amazing destinations, create unforgettable memories, and
-              experience the world like never before.
+              Explore the rich cultural heritage, stunning landscapes, and
+              authentic experiences of East Hararghe Zone, Ethiopia.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -113,11 +113,11 @@ const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Why Choose TravelMS?
+              Why Choose East Hararghe Tours?
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              We make travel planning easy and enjoyable with our comprehensive
-              platform.
+              Experience authentic Ethiopian culture and natural beauty in the
+              heart of East Hararghe Zone.
             </p>
           </div>
 
@@ -127,11 +127,11 @@ const HomePage: React.FC = () => {
                 <MapPin className="h-8 w-8 text-primary-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Amazing Destinations
+                Cultural Heritage
               </h3>
               <p className="text-gray-600">
-                Discover breathtaking locations and hidden gems around the
-                world.
+                Experience authentic Oromo culture, traditional ceremonies, and
+                local customs.
               </p>
             </div>
 
@@ -140,11 +140,11 @@ const HomePage: React.FC = () => {
                 <Users className="h-8 w-8 text-primary-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Expert Guides
+                Local Expertise
               </h3>
               <p className="text-gray-600">
-                Travel with experienced guides who know the best spots and
-                stories.
+                Travel with knowledgeable local guides who share the stories and
+                secrets of East Hararghe.
               </p>
             </div>
 

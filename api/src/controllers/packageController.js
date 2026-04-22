@@ -18,15 +18,31 @@ export class PackageController {
       }
 
       const companyId = companies[0].id;
-      const packageData = await PackageService.createPackage(
+
+      // Handle uploaded images
+      const imageUrls = [];
+      if (req.files && req.files.length > 0) {
+        req.files.forEach((file) => {
+          // Store relative path for the uploaded file
+          imageUrls.push(`/uploads/packages/${file.filename}`);
+        });
+      }
+
+      // Add image URLs to package data
+      const packageData = {
+        ...req.body,
+        images: imageUrls,
+      };
+
+      const createdPackage = await PackageService.createPackage(
         companyId,
-        req.body,
+        packageData,
       );
 
       res.status(201).json({
         success: true,
         message: "Package created successfully",
-        data: packageData,
+        data: createdPackage,
       });
     } catch (error) {
       res.status(400).json({
@@ -94,10 +110,21 @@ export class PackageController {
       }
 
       const companyId = companies[0].id;
+
+      // Handle uploaded images
+      const updateData = { ...req.body };
+      if (req.files && req.files.length > 0) {
+        const imageUrls = [];
+        req.files.forEach((file) => {
+          imageUrls.push(`/uploads/packages/${file.filename}`);
+        });
+        updateData.images = imageUrls;
+      }
+
       const packageData = await PackageService.updatePackage(
         id,
         companyId,
-        req.body,
+        updateData,
       );
 
       res.status(200).json({

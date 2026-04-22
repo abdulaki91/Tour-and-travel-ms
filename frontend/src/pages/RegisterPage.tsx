@@ -37,7 +37,7 @@ const RegisterPage: React.FC = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        phone: formData.phone,
+        phone: formData.phone.trim() || undefined,
       });
       toast.success("Registration successful!");
       navigate("/user");
@@ -79,9 +79,8 @@ const RegisterPage: React.FC = () => {
             <input
               name="phone"
               type="tel"
-              required
               className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Phone Number"
+              placeholder="Phone Number (Optional)"
               value={formData.phone}
               onChange={handleChange}
             />

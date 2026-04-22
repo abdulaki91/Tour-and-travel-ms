@@ -1,6 +1,16 @@
-# 🌍 Tour & Travel Management System
+# 🌍 East Hararghe Tour & Travel Management System
 
-A comprehensive full-stack web application for managing tour packages, bookings, and travel experiences. Built with React.js frontend and Node.js backend.
+A comprehensive full-stack web application for managing tour packages, bookings, and travel experiences in East Hararghe Zone, Ethiopia. Built with React.js frontend and Node.js backend to promote and facilitate tourism in the beautiful East Hararghe region.
+
+## 🏔️ About East Hararghe
+
+East Hararghe Zone is located in the Oromia Region of Ethiopia, known for its:
+
+- **Rich Cultural Heritage** - Traditional Oromo culture and customs
+- **Natural Beauty** - Mountains, valleys, and scenic landscapes
+- **Historical Sites** - Ancient monuments and archaeological sites
+- **Agricultural Tourism** - Coffee farms and traditional farming practices
+- **Adventure Tourism** - Hiking, trekking, and outdoor activities
 
 ## 🚀 Features
 

@@ -15,13 +15,14 @@ export class PackageService {
       includes,
       excludes,
       itinerary,
+      images,
     } = packageData;
 
     const [result] = await pool.execute(
       `INSERT INTO packages (
         company_id, title, description, location, duration_days, price,
-        max_people, available_slots, start_date, end_date, includes, excludes, itinerary
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        max_people, available_slots, start_date, end_date, includes, excludes, itinerary, images
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         companyId,
         title,
@@ -36,6 +37,7 @@ export class PackageService {
         includes,
         excludes,
         itinerary ? JSON.stringify(itinerary) : null,
+        images ? JSON.stringify(images) : null,
       ],
     );
 
@@ -137,12 +139,14 @@ export class PackageService {
     }));
 
     return {
-      packages: formattedPackages,
+      items: formattedPackages,
       pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: parseInt(total),
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
       },
     };
   }
@@ -177,8 +181,7 @@ export class PackageService {
     const [reviews] = await pool.execute(
       `SELECT 
         r.*,
-        u.first_name,
-        u.last_name,
+        u.name as user_name,
         u.profile_image
       FROM reviews r
       JOIN users u ON r.user_id = u.id
@@ -214,6 +217,7 @@ export class PackageService {
       "includes",
       "excludes",
       "itinerary",
+      "images",
       "is_active",
     ];
 
@@ -224,6 +228,8 @@ export class PackageService {
       if (allowedFields.includes(key)) {
         updateFields.push(`${key} = ?`);
         if (key === "itinerary" && updateData[key]) {
+          updateValues.push(JSON.stringify(updateData[key]));
+        } else if (key === "images" && updateData[key]) {
           updateValues.push(JSON.stringify(updateData[key]));
         } else {
           updateValues.push(updateData[key]);
@@ -306,12 +312,14 @@ export class PackageService {
     }));
 
     return {
-      packages: formattedPackages,
+      items: formattedPackages,
       pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: parseInt(total),
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
       },
     };
   }

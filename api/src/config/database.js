@@ -12,8 +12,8 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
+  // Remove invalid options that cause warnings
+  multipleStatements: true, // Allow multiple statements
 };
 
 // Create connection pool
@@ -22,9 +22,16 @@ const pool = mysql.createPool(dbConfig);
 // Test database connection
 export const testConnection = async () => {
   try {
-    const connection = await pool.getConnection();
-    console.log("✅ Database connected successfully");
+    // First test connection without database
+    const tempConfig = { ...dbConfig };
+    delete tempConfig.database;
+
+    const tempPool = mysql.createPool(tempConfig);
+    const connection = await tempPool.getConnection();
+    console.log("✅ Database server connected successfully");
     connection.release();
+    await tempPool.end();
+
     return true;
   } catch (error) {
     console.error("❌ Database connection failed:", error.message);
@@ -35,18 +42,29 @@ export const testConnection = async () => {
 // Initialize database schema
 export const initializeDatabase = async () => {
   try {
-    const connection = await pool.getConnection();
+    // First connect without specifying database to create it
+    const tempConfig = { ...dbConfig };
+    delete tempConfig.database; // Remove database from config temporarily
+
+    const tempPool = mysql.createPool(tempConfig);
+    const connection = await tempPool.getConnection();
 
     // Create database if not exists
-    await connection.execute(
+    await connection.query(
       `CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`,
     );
-    await connection.execute(`USE ${dbConfig.database}`);
-
-    // Create tables
-    await createTables(connection);
 
     connection.release();
+    await tempPool.end(); // Close temporary pool
+
+    // Now connect to the specific database
+    const mainConnection = await pool.getConnection();
+    await mainConnection.query(`USE ${dbConfig.database}`);
+
+    // Create tables
+    await createTables(mainConnection);
+
+    mainConnection.release();
     console.log("✅ Database schema initialized successfully");
   } catch (error) {
     console.error("❌ Database initialization failed:", error.message);
@@ -56,7 +74,7 @@ export const initializeDatabase = async () => {
 
 const createTables = async (connection) => {
   // Users table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT PRIMARY KEY AUTO_INCREMENT,
       email VARCHAR(255) UNIQUE NOT NULL,
@@ -75,7 +93,7 @@ const createTables = async (connection) => {
   `);
 
   // Roles table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS roles (
       id INT PRIMARY KEY AUTO_INCREMENT,
       name VARCHAR(50) UNIQUE NOT NULL,
@@ -85,7 +103,7 @@ const createTables = async (connection) => {
   `);
 
   // Insert default roles
-  await connection.execute(`
+  await connection.query(`
     INSERT IGNORE INTO roles (id, name, description) VALUES 
     (1, 'USER', 'Regular user who can book packages'),
     (2, 'COMPANY', 'Travel company that can create packages'),
@@ -93,7 +111,7 @@ const createTables = async (connection) => {
   `);
 
   // Companies table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS companies (
       id INT PRIMARY KEY AUTO_INCREMENT,
       user_id INT UNIQUE NOT NULL,
@@ -115,7 +133,7 @@ const createTables = async (connection) => {
   `);
 
   // Packages table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS packages (
       id INT PRIMARY KEY AUTO_INCREMENT,
       company_id INT NOT NULL,
@@ -144,7 +162,7 @@ const createTables = async (connection) => {
   `);
 
   // Bookings table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS bookings (
       id INT PRIMARY KEY AUTO_INCREMENT,
       user_id INT NOT NULL,
@@ -167,7 +185,7 @@ const createTables = async (connection) => {
   `);
 
   // Payments table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS payments (
       id INT PRIMARY KEY AUTO_INCREMENT,
       booking_id INT NOT NULL,
@@ -186,7 +204,7 @@ const createTables = async (connection) => {
   `);
 
   // Reviews table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS reviews (
       id INT PRIMARY KEY AUTO_INCREMENT,
       user_id INT NOT NULL,
@@ -206,7 +224,7 @@ const createTables = async (connection) => {
   `);
 
   // Notifications table
-  await connection.execute(`
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS notifications (
       id INT PRIMARY KEY AUTO_INCREMENT,
       user_id INT NOT NULL,
@@ -224,7 +242,7 @@ const createTables = async (connection) => {
 
   // Add foreign key constraint for users.role_id
   await connection
-    .execute(
+    .query(
       `
     ALTER TABLE users 
     ADD CONSTRAINT fk_users_role 
