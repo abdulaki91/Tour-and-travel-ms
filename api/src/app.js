@@ -33,6 +33,7 @@ app.use(
     origin: [
       process.env.FRONTEND_URL || "http://localhost:3000",
       "http://localhost:5173", // Vite dev server
+      "http://localhost:5174", // Alternative Vite dev server port
       "http://localhost:3000", // Alternative frontend port
     ],
     credentials: true,

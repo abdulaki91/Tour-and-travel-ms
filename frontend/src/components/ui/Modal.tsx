@@ -9,8 +9,9 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   showCloseButton?: boolean;
+  className?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -20,12 +21,14 @@ const Modal: React.FC<ModalProps> = ({
   children,
   size = "md",
   showCloseButton = true,
+  className,
 }) => {
   const sizeClasses = {
     sm: "max-w-md",
     md: "max-w-lg",
     lg: "max-w-2xl",
     xl: "max-w-4xl",
+    "2xl": "max-w-6xl",
   };
 
   return (
@@ -40,7 +43,7 @@ const Modal: React.FC<ModalProps> = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -55,31 +58,31 @@ const Modal: React.FC<ModalProps> = ({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all`}
+                className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-3xl bg-white/95 backdrop-blur-md border border-white/20 shadow-2xl transition-all ${className}`}
               >
                 {(title || showCloseButton) && (
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-200/50">
                     {title && (
                       <Dialog.Title
                         as="h3"
-                        className="text-lg font-medium leading-6 text-gray-900"
+                        className="text-2xl font-bold text-slate-900"
                       >
                         {title}
                       </Dialog.Title>
                     )}
                     {showCloseButton && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
                         onClick={onClose}
-                        className="p-1"
+                        className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-all duration-200"
                       >
                         <XMarkIcon className="h-5 w-5" />
-                      </Button>
+                      </button>
                     )}
                   </div>
                 )}
-                {children}
+                <div className={title || showCloseButton ? "p-6 pt-4" : "p-6"}>
+                  {children}
+                </div>
               </Dialog.Panel>
             </Transition.Child>
           </div>

@@ -13,19 +13,24 @@ const Badge: React.FC<BadgeProps> = ({
   size = "md",
   className,
 }) => {
-  const baseClasses = "inline-flex items-center font-medium rounded-full";
+  const baseClasses =
+    "inline-flex items-center font-medium rounded-full transition-all duration-200 backdrop-blur-sm";
 
   const variants = {
-    default: "bg-gray-100 text-gray-800",
-    success: "bg-green-100 text-green-800",
-    warning: "bg-yellow-100 text-yellow-800",
-    danger: "bg-red-100 text-red-800",
-    info: "bg-blue-100 text-blue-800",
+    default:
+      "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 shadow-sm hover:shadow-md",
+    success:
+      "bg-gradient-to-r from-success-100 to-success-200 text-success-800 shadow-sm hover:shadow-md hover:shadow-success-200/50",
+    warning:
+      "bg-gradient-to-r from-warning-100 to-warning-200 text-warning-800 shadow-sm hover:shadow-md hover:shadow-warning-200/50",
+    danger:
+      "bg-gradient-to-r from-error-100 to-error-200 text-error-800 shadow-sm hover:shadow-md hover:shadow-error-200/50",
+    info: "bg-gradient-to-r from-primary-100 to-primary-200 text-primary-800 shadow-sm hover:shadow-md hover:shadow-primary-200/50",
   };
 
   const sizes = {
-    sm: "px-2 py-0.5 text-xs",
-    md: "px-2.5 py-0.5 text-sm",
+    sm: "px-3 py-1 text-xs font-semibold",
+    md: "px-4 py-1.5 text-sm font-semibold",
   };
 
   return (

@@ -63,8 +63,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         throw new Error(response.message);
       }
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      // Prioritize specific error message over generic message
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error(error.message || "Login failed");
+      }
     }
   };
 
@@ -78,8 +85,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         throw new Error(response.message);
       }
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      // Prioritize specific error message over generic message
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error(error.message || "Registration failed");
+      }
     }
   };
 

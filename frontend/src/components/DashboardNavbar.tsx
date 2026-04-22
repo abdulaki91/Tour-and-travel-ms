@@ -1,13 +1,17 @@
 import React, { useState } from "react";
-import { Menu, Bell, User, LogOut } from "lucide-react";
+import { Menu, Bell, User, LogOut, Search, Settings } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 interface DashboardNavbarProps {
   onMenuClick: () => void;
+  title?: string;
 }
 
-const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onMenuClick }) => {
+const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
+  onMenuClick,
+  title = "Dashboard",
+}) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -18,54 +22,160 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 fixed w-full z-30 top-0">
-      <div className="px-3 py-3 lg:px-5 lg:pl-3">
+    <nav className="bg-white/95 backdrop-blur-md shadow-lg border-b border-white/20 fixed w-full z-30 top-0">
+      <div className="px-4 py-4 lg:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-start">
             <button
               onClick={onMenuClick}
-              className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
+              className="inline-flex items-center p-2 text-slate-500 rounded-xl lg:hidden hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
             >
               <Menu className="w-6 h-6" />
             </button>
-            <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap text-gray-900 ml-2 lg:ml-0">
-              Dashboard
-            </span>
+
+            <div className="flex items-center ml-2 lg:ml-0">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mr-3">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">{title}</h1>
+                <p className="text-xs text-slate-500 hidden sm:block">
+                  East Hararghe Tours
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Search */}
+            <div className="hidden md:flex items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="pl-10 pr-4 py-2 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200 w-64"
+                />
+              </div>
+            </div>
+
             {/* Notifications */}
-            <button className="p-2 text-gray-500 rounded-lg hover:text-gray-900 hover:bg-gray-100">
+            <button className="relative p-2 text-slate-500 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition-all duration-200">
               <Bell className="w-5 h-5" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+
+            {/* Settings */}
+            <button className="p-2 text-slate-500 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition-all duration-200">
+              <Settings className="w-5 h-5" />
             </button>
 
             {/* User Menu */}
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center space-x-3 p-2 text-sm text-gray-500 rounded-lg hover:bg-gray-100"
+                className="flex items-center space-x-3 p-2 text-sm text-slate-500 rounded-xl hover:bg-slate-100 transition-all duration-200"
               >
-                <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <User className="w-5 h-5 text-white" />
                 </div>
-                <span className="hidden md:block text-gray-900">
-                  {user?.name}
-                </span>
+                <div className="hidden md:block text-left">
+                  <div className="text-slate-900 font-medium">{user?.name}</div>
+                  <div className="text-xs text-slate-500 capitalize">
+                    {user?.role?.toLowerCase()}
+                  </div>
+                </div>
+                <svg
+                  className="w-4 h-4 text-slate-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                  <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                    <div className="font-medium">{user?.name}</div>
-                    <div className="text-gray-500">{user?.email}</div>
+                <div className="absolute right-0 mt-2 w-64 card shadow-2xl border border-white/20 z-50 animate-slide-up">
+                  <div className="py-2">
+                    <div className="px-4 py-3 border-b border-slate-200/50">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                          <User className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {user?.name}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {user?.email}
+                          </p>
+                          <div className="mt-1">
+                            <span className="badge-primary text-xs">
+                              {user?.role}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="py-2">
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate("/user/profile");
+                        }}
+                        className="flex items-center w-full px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                          <User className="w-4 h-4 text-blue-600" />
+                        </div>
+                        View Profile
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate("/user/profile");
+                        }}
+                        className="flex items-center w-full px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                          <Settings className="w-4 h-4 text-green-600" />
+                        </div>
+                        Account Settings
+                      </button>
+                    </div>
+
+                    <div className="border-t border-slate-200/50 py-2">
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                          <LogOut className="w-4 h-4 text-red-600" />
+                        </div>
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <LogOut className="h-4 w-4 inline mr-2" />
-                    Sign out
-                  </button>
                 </div>
               )}
             </div>

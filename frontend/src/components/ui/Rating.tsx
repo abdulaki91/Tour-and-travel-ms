@@ -50,7 +50,7 @@ const Rating: React.FC<RatingProps> = ({
 
   return (
     <div className={clsx("flex items-center gap-1", className)}>
-      <div className="flex">
+      <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((star) => {
           const isFilled = star <= displayValue;
           const StarComponent = isFilled ? StarIcon : StarOutlineIcon;
@@ -63,22 +63,28 @@ const Rating: React.FC<RatingProps> = ({
                 sizeClasses[size],
                 readonly
                   ? "cursor-default"
-                  : "cursor-pointer hover:scale-110 transition-transform",
-                isFilled ? "text-yellow-400" : "text-gray-300",
+                  : "cursor-pointer hover:scale-125 transition-all duration-200 hover:drop-shadow-lg",
+                isFilled
+                  ? "text-warning-400 drop-shadow-sm"
+                  : "text-gray-300 hover:text-warning-200",
+                !readonly &&
+                  "focus:outline-none focus:ring-2 focus:ring-warning-300 focus:ring-offset-1 rounded-sm",
               )}
               onClick={() => handleClick(star)}
               onMouseEnter={() => handleMouseEnter(star)}
               onMouseLeave={handleMouseLeave}
               disabled={readonly}
             >
-              <StarComponent className="w-full h-full" />
+              <StarComponent className="w-full h-full filter" />
             </button>
           );
         })}
       </div>
 
       {showValue && (
-        <span className="text-sm text-gray-600 ml-1">({value.toFixed(1)})</span>
+        <span className="text-sm text-gray-600 ml-2 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
+          {value.toFixed(1)}
+        </span>
       )}
     </div>
   );

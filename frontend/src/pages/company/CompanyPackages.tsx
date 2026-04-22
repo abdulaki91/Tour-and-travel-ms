@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, TrashIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { PlusIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import { packageService } from "../../services/packages";
 import type { PackageFilters } from "../../types";
 import Button from "../../components/ui/Button";
-import Badge from "../../components/ui/Badge";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import EmptyState from "../../components/ui/EmptyState";
-import Modal from "../../components/ui/Modal";
+import PackageStatsGrid from "../../components/company/PackageStatsGrid";
+import PackageTable from "../../components/company/PackageTable";
+import DeletePackageModal from "../../components/company/DeletePackageModal";
+import Pagination from "../../components/common/Pagination";
 
 const CompanyPackages: React.FC = () => {
   const queryClient = useQueryClient();
@@ -69,6 +71,10 @@ const CompanyPackages: React.FC = () => {
     toggleStatusMutation.mutate(id);
   };
 
+  const handlePageChange = (page: number) => {
+    setFilters((prev) => ({ ...prev, page }));
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-64">
@@ -79,8 +85,8 @@ const CompanyPackages: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-center">
-        <p className="text-red-600 mb-4">Failed to load packages</p>
+      <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+        <p className="text-error-600 mb-6 font-medium">Failed to load packages</p>
         <Button onClick={() => window.location.reload()}>Try Again</Button>
       </div>
     );
@@ -90,41 +96,25 @@ const CompanyPackages: React.FC = () => {
   const pagination = data?.data.pagination;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Packages</h1>
-        <Link to="/company/packages/create">
-          <Button>Create Package</Button>
-        </Link>
+    <div className="space-y-8 animate-fade-in">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold font-display mb-2">My Packages</h1>
+            <p className="text-primary-100 text-lg">Manage your tour packages and offerings 📦</p>
+          </div>
+          <Link to="/company/packages/create">
+            <Button size="lg" className="bg-white text-primary-600 hover:bg-gray-100 shadow-lg hover:shadow-xl">
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Create Package
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-2xl font-bold text-gray-900">
-            {packages.length}
-          </div>
-          <div className="text-sm text-gray-500">Total Packages</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-2xl font-bold text-green-600">
-            {packages.filter((p) => p.is_active).length}
-          </div>
-          <div className="text-sm text-gray-500">Active Packages</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-2xl font-bold text-yellow-600">
-            {packages.filter((p) => !p.is_active).length}
-          </div>
-          <div className="text-sm text-gray-500">Inactive Packages</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-2xl font-bold text-indigo-600">
-            {packages.reduce((sum, p) => sum + p.review_count, 0)}
-          </div>
-          <div className="text-sm text-gray-500">Total Reviews</div>
-        </div>
-      </div>
+      <PackageStatsGrid packages={packages} />
 
       {packages.length === 0 ? (
         <EmptyState
@@ -137,188 +127,31 @@ const CompanyPackages: React.FC = () => {
         />
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Package
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Duration
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bookings
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Rating
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {packages.map((pkg) => (
-                    <tr key={pkg.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-12 w-12">
-                            {pkg.images && pkg.images.length > 0 ? (
-                              <img
-                                className="h-12 w-12 rounded-lg object-cover"
-                                src={pkg.images[0]}
-                                alt={pkg.title}
-                              />
-                            ) : (
-                              <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
-                                <span className="text-gray-400 text-xs">
-                                  No Image
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {pkg.title}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {pkg.location}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          ${pkg.price}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {pkg.duration_days} days
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={pkg.is_active ? "success" : "warning"}>
-                          {pkg.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {pkg.available_slots} / {pkg.max_people}
-                        </div>
-                        <div className="text-xs text-gray-500">available</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {pkg.average_rating.toFixed(1)} ⭐
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {pkg.review_count} reviews
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <Link to={`/packages/${pkg.id}`}>
-                            <Button size="sm" variant="ghost">
-                              <EyeIcon className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Link to={`/company/packages/${pkg.id}/edit`}>
-                            <Button size="sm" variant="ghost">
-                              <PencilIcon className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(pkg.id)}
-                            loading={toggleStatusMutation.isPending}
-                          >
-                            {pkg.is_active ? "Deactivate" : "Activate"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDelete(pkg.id, pkg.title)}
-                          >
-                            <TrashIcon className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <PackageTable
+            packages={packages}
+            onToggleStatus={handleToggleStatus}
+            onDelete={handleDelete}
+            isToggling={toggleStatusMutation.isPending}
+          />
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex justify-center items-center space-x-2 mt-8">
-              <Button
-                variant="outline"
-                disabled={!pagination.hasPrev}
-                onClick={() =>
-                  setFilters((prev) => ({ ...prev, page: pagination.page - 1 }))
-                }
-              >
-                Previous
-              </Button>
-
-              <span className="text-sm text-gray-600">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-
-              <Button
-                variant="outline"
-                disabled={!pagination.hasNext}
-                onClick={() =>
-                  setFilters((prev) => ({ ...prev, page: pagination.page + 1 }))
-                }
-              >
-                Next
-              </Button>
-            </div>
+          {pagination && (
+            <Pagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+            />
           )}
         </>
       )}
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <DeletePackageModal
         isOpen={deleteModal.isOpen}
+        packageTitle={deleteModal.packageTitle}
         onClose={() => setDeleteModal({ isOpen: false })}
-        title="Delete Package"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Are you sure you want to delete "{deleteModal.packageTitle}"? This
-            action cannot be undone.
-          </p>
-          <div className="flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteModal({ isOpen: false })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmDelete}
-              loading={deletePackageMutation.isPending}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        onConfirm={confirmDelete}
+        isDeleting={deletePackageMutation.isPending}
+      />
     </div>
   );
 };

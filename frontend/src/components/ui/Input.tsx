@@ -22,26 +22,33 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-semibold text-gray-700 mb-2 font-display"
           >
             {label}
           </label>
         )}
 
-        <div className="relative">
+        <div className="relative group">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <div className="h-5 w-5 text-gray-400">{leftIcon}</div>
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+              <div className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors duration-200">
+                {leftIcon}
+              </div>
             </div>
           )}
 
           <input
             id={inputId}
             className={clsx(
-              "block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm",
-              leftIcon && "pl-10",
-              rightIcon && "pr-10",
-              error && "border-red-300 focus:border-red-500 focus:ring-red-500",
+              "block w-full rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200",
+              "focus:border-primary-500 focus:ring-4 focus:ring-primary-100 focus:bg-white",
+              "hover:border-gray-300 hover:shadow-md",
+              "placeholder:text-gray-400 text-gray-900",
+              "px-4 py-3 text-sm font-medium",
+              leftIcon && "pl-12",
+              rightIcon && "pr-12",
+              error &&
+                "border-error-300 focus:border-error-500 focus:ring-error-100 bg-error-50/50",
               className,
             )}
             ref={ref}
@@ -49,16 +56,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           />
 
           {rightIcon && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <div className="h-5 w-5 text-gray-400">{rightIcon}</div>
+            <div className="absolute inset-y-0 right-0 pr-4 flex items-center z-10">
+              <div className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors duration-200">
+                {rightIcon}
+              </div>
             </div>
           )}
         </div>
 
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {error && (
+          <p className="mt-2 text-sm text-error-600 font-medium animate-slide-up">
+            {error}
+          </p>
+        )}
 
         {helperText && !error && (
-          <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+          <p className="mt-2 text-sm text-gray-500">{helperText}</p>
         )}
       </div>
     );

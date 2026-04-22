@@ -10,6 +10,10 @@ import {
   BarChart3,
   User,
   MapPin,
+  Settings,
+  CreditCard,
+  Star,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import clsx from "clsx";
@@ -27,34 +31,102 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     switch (user?.role) {
       case "ADMIN":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/admin" },
-          { icon: Users, label: "Users", path: "/admin/users" },
-          { icon: Building, label: "Companies", path: "/admin/companies" },
+          {
+            icon: BarChart3,
+            label: "Dashboard",
+            path: "/admin",
+            color: "blue",
+          },
+          { icon: Users, label: "Users", path: "/admin/users", color: "green" },
+          {
+            icon: Building,
+            label: "Companies",
+            path: "/admin/companies",
+            color: "purple",
+          },
         ];
       case "COMPANY":
         return [
-          { icon: BarChart3, label: "Dashboard", path: "/company" },
-          { icon: Package, label: "My Packages", path: "/company/packages" },
-          { icon: Calendar, label: "Bookings", path: "/company/bookings" },
+          {
+            icon: BarChart3,
+            label: "Dashboard",
+            path: "/company",
+            color: "blue",
+          },
+          {
+            icon: Package,
+            label: "My Packages",
+            path: "/company/packages",
+            color: "green",
+          },
+          {
+            icon: Calendar,
+            label: "Bookings",
+            path: "/company/bookings",
+            color: "orange",
+          },
+          {
+            icon: Star,
+            label: "Reviews",
+            path: "/company/reviews",
+            color: "yellow",
+          },
         ];
       case "USER":
       default:
         return [
-          { icon: Home, label: "Dashboard", path: "/user" },
-          { icon: User, label: "Profile", path: "/user/profile" },
-          { icon: Calendar, label: "My Bookings", path: "/user/bookings" },
+          { icon: Home, label: "Dashboard", path: "/user", color: "blue" },
+          {
+            icon: User,
+            label: "Profile",
+            path: "/user/profile",
+            color: "green",
+          },
+          {
+            icon: Calendar,
+            label: "My Bookings",
+            path: "/user/bookings",
+            color: "orange",
+          },
+          {
+            icon: CreditCard,
+            label: "Payment History",
+            path: "/user/payments",
+            color: "purple",
+          },
         ];
     }
   };
 
   const menuItems = getMenuItems();
 
+  const getColorClasses = (color: string, isActive: boolean) => {
+    const colors = {
+      blue: isActive
+        ? "bg-blue-50 text-blue-700 border-blue-500"
+        : "text-slate-600 hover:bg-blue-50 hover:text-blue-700",
+      green: isActive
+        ? "bg-green-50 text-green-700 border-green-500"
+        : "text-slate-600 hover:bg-green-50 hover:text-green-700",
+      orange: isActive
+        ? "bg-orange-50 text-orange-700 border-orange-500"
+        : "text-slate-600 hover:bg-orange-50 hover:text-orange-700",
+      purple: isActive
+        ? "bg-purple-50 text-purple-700 border-purple-500"
+        : "text-slate-600 hover:bg-purple-50 hover:text-purple-700",
+      yellow: isActive
+        ? "bg-yellow-50 text-yellow-700 border-yellow-500"
+        : "text-slate-600 hover:bg-yellow-50 hover:text-yellow-700",
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden animate-fade-in"
           onClick={onClose}
         />
       )}
@@ -62,66 +134,159 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       {/* Sidebar */}
       <div
         className={clsx(
-          "fixed top-0 left-0 z-50 w-64 h-screen pt-20 transition-transform bg-white border-r border-gray-200 lg:translate-x-0",
+          "fixed top-0 left-0 z-50 w-72 h-screen pt-20 transition-all duration-300 bg-white/95 backdrop-blur-md border-r border-white/20 shadow-2xl lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Mobile close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-500 rounded-lg lg:hidden hover:bg-gray-100"
+          className="absolute top-4 right-4 p-2 text-slate-500 rounded-xl lg:hidden hover:bg-slate-100 hover:text-slate-900 transition-all duration-200"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Logo */}
-        <div className="flex items-center space-x-2 px-6 pb-4 border-b border-gray-200 lg:hidden">
-          <MapPin className="h-8 w-8 text-primary-600" />
-          <span className="text-xl font-bold text-gray-900">TravelMS</span>
+        {/* Logo - Mobile */}
+        <div className="flex items-center space-x-3 px-6 pb-6 border-b border-slate-200/50 lg:hidden">
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <MapPin className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <span className="text-xl font-bold text-slate-900">
+              East Hararghe Tours
+            </span>
+            <p className="text-xs text-slate-500">Management System</p>
+          </div>
+        </div>
+
+        {/* User Info */}
+        <div className="px-6 py-4 border-b border-slate-200/50">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+              <User className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-slate-900 truncate">
+                {user?.name}
+              </p>
+              <p className="text-sm text-slate-500 truncate">{user?.email}</p>
+              <div className="mt-1">
+                <span className="badge-primary text-xs">{user?.role}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Navigation */}
-        <div className="h-full px-3 pb-4 overflow-y-auto">
-          <ul className="space-y-2 font-medium mt-4">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+        <div className="h-full px-4 pb-4 overflow-y-auto scrollbar-custom">
+          <div className="py-4">
+            <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+              Main Menu
+            </p>
+            <ul className="space-y-2">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
 
-              return (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    onClick={onClose}
-                    className={clsx(
-                      "flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 group",
-                      isActive &&
-                        "bg-primary-50 text-primary-700 border-r-2 border-primary-700",
-                    )}
-                  >
-                    <Icon
+                return (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      onClick={onClose}
                       className={clsx(
-                        "w-5 h-5 transition duration-75",
-                        isActive
-                          ? "text-primary-700"
-                          : "text-gray-500 group-hover:text-gray-900",
+                        "flex items-center px-3 py-3 rounded-xl font-medium transition-all duration-200 group",
+                        getColorClasses(item.color, isActive),
+                        isActive &&
+                          "border-r-4 shadow-lg transform scale-[1.02]",
                       )}
-                    />
-                    <span className="ml-3">{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                    >
+                      <div
+                        className={clsx(
+                          "w-10 h-10 rounded-xl flex items-center justify-center mr-3 transition-all duration-200",
+                          isActive
+                            ? `bg-${item.color}-100`
+                            : "bg-slate-100 group-hover:bg-slate-200",
+                        )}
+                      >
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <span className="flex-1">{item.label}</span>
+                      {isActive && (
+                        <div className="w-2 h-2 bg-current rounded-full"></div>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="py-4 border-t border-slate-200/50">
+            <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+              Quick Actions
+            </p>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  to="/packages"
+                  onClick={onClose}
+                  className="flex items-center px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group"
+                >
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <span className="flex-1">Browse Tours</span>
+                </Link>
+              </li>
+
+              <li>
+                <button className="flex items-center w-full px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
+                    <Bell className="w-5 h-5" />
+                  </div>
+                  <span className="flex-1">Notifications</span>
+                  <span className="w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    3
+                  </span>
+                </button>
+              </li>
+
+              <li>
+                <button className="flex items-center w-full px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
+                    <Settings className="w-5 h-5" />
+                  </div>
+                  <span className="flex-1">Settings</span>
+                </button>
+              </li>
+            </ul>
+          </div>
 
           {/* Back to main site */}
-          <div className="mt-8 pt-4 border-t border-gray-200">
+          <div className="py-4 border-t border-slate-200/50">
             <Link
               to="/"
               onClick={onClose}
-              className="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 group"
+              className="flex items-center px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 group"
             >
-              <MapPin className="w-5 h-5 text-gray-500 group-hover:text-gray-900" />
-              <span className="ml-3">Back to Site</span>
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-blue-200 transition-all duration-200">
+                <Home className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="flex-1">Back to Website</span>
+              <svg
+                className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
             </Link>
           </div>
         </div>

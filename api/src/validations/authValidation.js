@@ -16,7 +16,10 @@ export const registerValidation = Joi.object({
   }),
   phone: Joi.string()
     .pattern(/^[+]?[\d\s-()]+$/)
+    .allow("", null)
     .optional()
+    .empty("")
+    .default(null)
     .messages({
       "string.pattern.base": "Please provide a valid phone number",
     }),
