@@ -13,6 +13,7 @@
     "test-socket": "node src/scripts/testSocket.js"
   },
   "dependencies": {
+    "axios": "^1.15.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

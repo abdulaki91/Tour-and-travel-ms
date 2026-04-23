@@ -106,269 +106,28 @@ export class AdminService {
     const {
       page = 1,
       limit = 10,
-      role,
-      search,
-      sort_by = "created_at",
-      sort_order = "desc",
+      search = "",
+      role = "",
+      status = "",
     } = filters;
     const offset = (page - 1) * limit;
 
-    let whereConditions = [];
-    let queryParams = [];
-
-    if (role) {
-      whereConditions.push("r.name = ?");
-      queryParams.push(role);
-    }
-
-    if (search) {
-      whereConditions.push("(u.name LIKE ? OR u.email LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
-    }
-
-    const whereClause =
-      whereConditions.length > 0
-        ? `WHERE ${whereConditions.join(" AND ")}`
-        : "";
-
-    const [users] = await pool.execute(
-      `SELECT 
-        u.id,
-        u.email,
-        u.name,
-        u.phone,
-        u.profile_image,
-        u.is_active,
-        u.email_verified,
-        u.created_at,
-        r.name as role_name
-      FROM users u
-      JOIN roles r ON u.role_id = r.id
-      ${whereClause}
-      ORDER BY u.${sort_by} ${sort_order.toUpperCase()}
-      LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset],
-    );
-
-    // Get total count
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total 
-       FROM users u 
-       JOIN roles r ON u.role_id = r.id 
-       ${whereClause}`,
-      queryParams,
-    );
-
-    const total = countResult[0].total;
-
-    return {
-      users,
-      pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
-      },
-    };
-  }
-
-  static async getAllCompanies(filters = {}) {
-    const {
-      page = 1,
-      limit = 10,
-      verified,
-      search,
-      sort_by = "created_at",
-      sort_order = "desc",
-    } = filters;
-    const offset = (page - 1) * limit;
-
-    let whereConditions = [];
-    let queryParams = [];
-
-    if (verified !== undefined) {
-      whereConditions.push("c.is_verified = ?");
-      queryParams.push(verified);
-    }
-
-    if (search) {
-      whereConditions.push("(c.company_name LIKE ? OR c.email LIKE ?)");
-      queryParams.push(`%${search}%`, `%${search}%`);
-    }
-
-    const whereClause =
-      whereConditions.length > 0
-        ? `WHERE ${whereConditions.join(" AND ")}`
-        : "";
-
-    const [companies] = await pool.execute(
-      `SELECT 
-        c.*,
-        u.name,
-        u.email as user_email,
-        COUNT(p.id) as package_count
-      FROM companies c
-      JOIN users u ON c.user_id = u.id
-      LEFT JOIN packages p ON c.id = p.company_id AND p.is_active = true
-      ${whereClause}
-      GROUP BY c.id
-      ORDER BY c.${sort_by} ${sort_order.toUpperCase()}
-      LIMIT ? OFFSET ?`,
-      [...queryParams, limit, offset],
-    );
-
-    // Get total count
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total 
-       FROM companies c 
-       JOIN users u ON c.user_id = u.id 
-       ${whereClause}`,
-      queryParams,
-    );
-
-    const total = countResult[0].total;
-
-    const formattedCompanies = companies.map((company) => ({
-      ...company,
-      package_count: parseInt(company.package_count),
-    }));
-
-    return {
-      companies: formattedCompanies,
-      pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
-      },
-    };
-  }
-
-  static async updateUserStatus(userId, isActive) {
-    const [result] = await pool.execute(
-      "UPDATE users SET is_active = ? WHERE id = ?",
-      [isActive, userId],
-    );
-
-    if (result.affectedRows === 0) {
-      throw new Error("User not found");
-    }
-
-    return true;
-  }
-
-  static async verifyCompany(companyId, isVerified) {
-    const [result] = await pool.execute(
-      "UPDATE companies SET is_verified = ? WHERE id = ?",
-      [isVerified, companyId],
-    );
-
-    if (result.affectedRows === 0) {
-      throw new Error("Company not found");
-    }
-
-    return true;
-  }
-
-  static async deleteUser(userId) {
-    const connection = await pool.getConnection();
-
-    try {
-      await connection.beginTransaction();
-
-      // Check if user has any bookings
-      const [bookings] = await connection.execute(
-        "SELECT COUNT(*) as count FROM bookings WHERE user_id = ?",
-        [userId],
-      );
-
-      if (bookings[0].count > 0) {
-        throw new Error("Cannot delete user with existing bookings");
-      }
-
-      // Delete user (cascade will handle related records)
-      const [result] = await connection.execute(
-        "DELETE FROM users WHERE id = ?",
-        [userId],
-      );
-
-      if (result.affectedRows === 0) {
-        throw new Error("User not found");
-      }
-
-      await connection.commit();
-      return true;
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  }
-
-  static async deleteCompany(companyId) {
-    const connection = await pool.getConnection();
-
-    try {
-      await connection.beginTransaction();
-
-      // Check if company has any active bookings
-      const [bookings] = await connection.execute(
-        `SELECT COUNT(*) as count 
-         FROM bookings b 
-         JOIN packages p ON b.package_id = p.id 
-         WHERE p.company_id = ? AND b.status IN ('pending', 'confirmed')`,
-        [companyId],
-      );
-
-      if (bookings[0].count > 0) {
-        throw new Error("Cannot delete company with active bookings");
-      }
-
-      // Delete company (cascade will handle related records)
-      const [result] = await connection.execute(
-        "DELETE FROM companies WHERE id = ?",
-        [companyId],
-      );
-
-      if (result.affectedRows === 0) {
-        throw new Error("Company not found");
-      }
-
-      await connection.commit();
-      return true;
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  }
-}
-      })),
-    };
-  }
-
-  static async getAllUsers(filters = {}) {
-    const { page = 1, limit = 10, search = '', role = '', status = '' } = filters;
-    const offset = (page - 1) * limit;
-
-    let whereClause = 'WHERE 1=1';
+    let whereClause = "WHERE 1=1";
     const params = [];
 
     if (search) {
-      whereClause += ' AND (u.name LIKE ? OR u.email LIKE ?)';
+      whereClause += " AND (u.name LIKE ? OR u.email LIKE ?)";
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (role) {
-      whereClause += ' AND r.name = ?';
+      whereClause += " AND r.name = ?";
       params.push(role);
     }
 
-    if (status !== '') {
-      whereClause += ' AND u.is_active = ?';
-      params.push(status === 'active');
+    if (status !== "") {
+      whereClause += " AND u.is_active = ?";
+      params.push(status === "active");
     }
 
     const [users] = await pool.execute(
@@ -382,7 +141,7 @@ export class AdminService {
       ${whereClause}
       ORDER BY u.created_at DESC
       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      [...params, limit, offset],
     );
 
     const [countResult] = await pool.execute(
@@ -391,7 +150,7 @@ export class AdminService {
       JOIN roles r ON u.role_id = r.id
       LEFT JOIN companies c ON u.id = c.user_id
       ${whereClause}`,
-      params
+      params,
     );
 
     return {
@@ -399,68 +158,78 @@ export class AdminService {
       total: countResult[0].total,
       page: parseInt(page),
       limit: parseInt(limit),
-      totalPages: Math.ceil(countResult[0].total / limit)
+      totalPages: Math.ceil(countResult[0].total / limit),
     };
   }
 
   static async updateUserStatus(userId, isActive) {
     const [result] = await pool.execute(
-      'UPDATE users SET is_active = ? WHERE id = ?',
-      [isActive, userId]
+      "UPDATE users SET is_active = ? WHERE id = ?",
+      [isActive, userId],
     );
 
     if (result.affectedRows === 0) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
-    return { success: true, message: 'User status updated successfully' };
+    return { success: true, message: "User status updated successfully" };
   }
 
   static async deleteUser(userId) {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
       // Check if user exists and get role
       const [users] = await connection.execute(
-        'SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = ?',
-        [userId]
+        "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = ?",
+        [userId],
       );
 
       if (users.length === 0) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       const user = users[0];
 
       // If company user, delete company data first
-      if (user.role_name === 'COMPANY') {
+      if (user.role_name === "COMPANY") {
         // Delete company packages (this will cascade to bookings)
-        await connection.execute('DELETE FROM packages WHERE company_id = ?', [userId]);
-        
+        await connection.execute("DELETE FROM packages WHERE company_id = ?", [
+          userId,
+        ]);
+
         // Delete company record
-        await connection.execute('DELETE FROM companies WHERE user_id = ?', [userId]);
+        await connection.execute("DELETE FROM companies WHERE user_id = ?", [
+          userId,
+        ]);
       }
 
       // Delete user's bookings and related data
-      await connection.execute('DELETE FROM reviews WHERE user_id = ?', [userId]);
-      await connection.execute('DELETE FROM notifications WHERE user_id = ?', [userId]);
-      
+      await connection.execute("DELETE FROM reviews WHERE user_id = ?", [
+        userId,
+      ]);
+      await connection.execute("DELETE FROM notifications WHERE user_id = ?", [
+        userId,
+      ]);
+
       // Delete payments for user's bookings
       await connection.execute(
-        'DELETE p FROM payments p JOIN bookings b ON p.booking_id = b.id WHERE b.user_id = ?',
-        [userId]
+        "DELETE p FROM payments p JOIN bookings b ON p.booking_id = b.id WHERE b.user_id = ?",
+        [userId],
       );
-      
+
       // Delete user's bookings
-      await connection.execute('DELETE FROM bookings WHERE user_id = ?', [userId]);
+      await connection.execute("DELETE FROM bookings WHERE user_id = ?", [
+        userId,
+      ]);
 
       // Finally delete the user
-      await connection.execute('DELETE FROM users WHERE id = ?', [userId]);
+      await connection.execute("DELETE FROM users WHERE id = ?", [userId]);
 
       await connection.commit();
-      return { success: true, message: 'User deleted successfully' };
+      return { success: true, message: "User deleted successfully" };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -470,20 +239,20 @@ export class AdminService {
   }
 
   static async getAllCompanies(filters = {}) {
-    const { page = 1, limit = 10, search = '', status = '' } = filters;
+    const { page = 1, limit = 10, search = "", status = "" } = filters;
     const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE 1=1';
+    let whereClause = "WHERE 1=1";
     const params = [];
 
     if (search) {
-      whereClause += ' AND (c.company_name LIKE ? OR u.email LIKE ?)';
+      whereClause += " AND (c.company_name LIKE ? OR u.email LIKE ?)";
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    if (status !== '') {
-      whereClause += ' AND c.is_verified = ?';
-      params.push(status === 'verified');
+    if (status !== "") {
+      whereClause += " AND c.is_verified = ?";
+      params.push(status === "verified");
     }
 
     const [companies] = await pool.execute(
@@ -498,7 +267,7 @@ export class AdminService {
       GROUP BY c.id
       ORDER BY c.created_at DESC
       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      [...params, limit, offset],
     );
 
     const [countResult] = await pool.execute(
@@ -506,7 +275,7 @@ export class AdminService {
       FROM companies c
       JOIN users u ON c.user_id = u.id
       ${whereClause}`,
-      params
+      params,
     );
 
     return {
@@ -514,52 +283,59 @@ export class AdminService {
       total: countResult[0].total,
       page: parseInt(page),
       limit: parseInt(limit),
-      totalPages: Math.ceil(countResult[0].total / limit)
+      totalPages: Math.ceil(countResult[0].total / limit),
     };
   }
 
   static async verifyCompany(companyId, isVerified) {
     const [result] = await pool.execute(
-      'UPDATE companies SET is_verified = ? WHERE id = ?',
-      [isVerified, companyId]
+      "UPDATE companies SET is_verified = ? WHERE id = ?",
+      [isVerified, companyId],
     );
 
     if (result.affectedRows === 0) {
-      throw new Error('Company not found');
+      throw new Error("Company not found");
     }
 
-    return { success: true, message: 'Company verification status updated successfully' };
+    return {
+      success: true,
+      message: "Company verification status updated successfully",
+    };
   }
 
   static async deleteCompany(companyId) {
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
       // Get company user ID
       const [companies] = await connection.execute(
-        'SELECT user_id FROM companies WHERE id = ?',
-        [companyId]
+        "SELECT user_id FROM companies WHERE id = ?",
+        [companyId],
       );
 
       if (companies.length === 0) {
-        throw new Error('Company not found');
+        throw new Error("Company not found");
       }
 
       const userId = companies[0].user_id;
 
       // Delete company packages and related data
-      await connection.execute('DELETE FROM packages WHERE company_id = ?', [userId]);
-      
+      await connection.execute("DELETE FROM packages WHERE company_id = ?", [
+        userId,
+      ]);
+
       // Delete company record
-      await connection.execute('DELETE FROM companies WHERE id = ?', [companyId]);
+      await connection.execute("DELETE FROM companies WHERE id = ?", [
+        companyId,
+      ]);
 
       // Delete the user account
-      await connection.execute('DELETE FROM users WHERE id = ?', [userId]);
+      await connection.execute("DELETE FROM users WHERE id = ?", [userId]);
 
       await connection.commit();
-      return { success: true, message: 'Company deleted successfully' };
+      return { success: true, message: "Company deleted successfully" };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -569,19 +345,20 @@ export class AdminService {
   }
 
   static async getAllReviews(filters = {}) {
-    const { page = 1, limit = 10, search = '', rating = '' } = filters;
+    const { page = 1, limit = 10, search = "", rating = "" } = filters;
     const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE 1=1';
+    let whereClause = "WHERE 1=1";
     const params = [];
 
     if (search) {
-      whereClause += ' AND (p.title LIKE ? OR u.name LIKE ? OR r.comment LIKE ?)';
+      whereClause +=
+        " AND (p.title LIKE ? OR u.name LIKE ? OR r.comment LIKE ?)";
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     if (rating) {
-      whereClause += ' AND r.rating = ?';
+      whereClause += " AND r.rating = ?";
       params.push(parseInt(rating));
     }
 
@@ -596,7 +373,7 @@ export class AdminService {
       ${whereClause}
       ORDER BY r.created_at DESC
       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      [...params, limit, offset],
     );
 
     const [countResult] = await pool.execute(
@@ -606,7 +383,7 @@ export class AdminService {
       JOIN packages p ON r.package_id = p.id
       JOIN companies c ON p.company_id = c.user_id
       ${whereClause}`,
-      params
+      params,
     );
 
     return {
@@ -614,92 +391,98 @@ export class AdminService {
       total: countResult[0].total,
       page: parseInt(page),
       limit: parseInt(limit),
-      totalPages: Math.ceil(countResult[0].total / limit)
+      totalPages: Math.ceil(countResult[0].total / limit),
     };
   }
 
   static async deleteReview(reviewId) {
-    const [result] = await pool.execute(
-      'DELETE FROM reviews WHERE id = ?',
-      [reviewId]
-    );
+    const [result] = await pool.execute("DELETE FROM reviews WHERE id = ?", [
+      reviewId,
+    ]);
 
     if (result.affectedRows === 0) {
-      throw new Error('Review not found');
+      throw new Error("Review not found");
     }
 
-    return { success: true, message: 'Review deleted successfully' };
+    return { success: true, message: "Review deleted successfully" };
   }
 
   static async getSystemHealth() {
     try {
       // Test database connection
-      const [dbTest] = await pool.execute('SELECT 1 as test');
-      
+      const [dbTest] = await pool.execute("SELECT 1 as test");
+
       // Get system stats
-      const [userCount] = await pool.execute('SELECT COUNT(*) as count FROM users');
-      const [companyCount] = await pool.execute('SELECT COUNT(*) as count FROM companies');
-      const [packageCount] = await pool.execute('SELECT COUNT(*) as count FROM packages');
-      const [bookingCount] = await pool.execute('SELECT COUNT(*) as count FROM bookings');
+      const [userCount] = await pool.execute(
+        "SELECT COUNT(*) as count FROM users",
+      );
+      const [companyCount] = await pool.execute(
+        "SELECT COUNT(*) as count FROM companies",
+      );
+      const [packageCount] = await pool.execute(
+        "SELECT COUNT(*) as count FROM packages",
+      );
+      const [bookingCount] = await pool.execute(
+        "SELECT COUNT(*) as count FROM bookings",
+      );
 
       return {
         database: {
-          status: 'healthy',
-          connection: 'active',
-          last_check: new Date().toISOString()
+          status: "healthy",
+          connection: "active",
+          last_check: new Date().toISOString(),
         },
         system: {
           uptime: process.uptime(),
           memory_usage: process.memoryUsage(),
           node_version: process.version,
-          environment: process.env.NODE_ENV || 'development'
+          environment: process.env.NODE_ENV || "development",
         },
         statistics: {
           total_users: userCount[0].count,
           total_companies: companyCount[0].count,
           total_packages: packageCount[0].count,
-          total_bookings: bookingCount[0].count
-        }
+          total_bookings: bookingCount[0].count,
+        },
       };
     } catch (error) {
       return {
         database: {
-          status: 'unhealthy',
-          connection: 'failed',
+          status: "unhealthy",
+          connection: "failed",
           error: error.message,
-          last_check: new Date().toISOString()
+          last_check: new Date().toISOString(),
         },
         system: {
           uptime: process.uptime(),
           memory_usage: process.memoryUsage(),
           node_version: process.version,
-          environment: process.env.NODE_ENV || 'development'
-        }
+          environment: process.env.NODE_ENV || "development",
+        },
       };
     }
   }
 
   static async generateReport(type, filters = {}) {
     const { startDate, endDate } = filters;
-    
+
     switch (type) {
-      case 'revenue':
+      case "revenue":
         return await this.generateRevenueReport(startDate, endDate);
-      case 'bookings':
+      case "bookings":
         return await this.generateBookingsReport(startDate, endDate);
-      case 'users':
+      case "users":
         return await this.generateUsersReport(startDate, endDate);
-      case 'companies':
+      case "companies":
         return await this.generateCompaniesReport(startDate, endDate);
       default:
-        throw new Error('Invalid report type');
+        throw new Error("Invalid report type");
     }
   }
 
   static async generateRevenueReport(startDate, endDate) {
-    const dateFilter = startDate && endDate 
-      ? 'AND p.payment_date BETWEEN ? AND ?' 
-      : '';
+    const dateFilter =
+      startDate && endDate ? "AND p.payment_date BETWEEN ? AND ?" : "";
     const params = startDate && endDate ? [startDate, endDate] : [];
 
     const [revenue] = await pool.execute(
@@ -712,7 +495,7 @@ export class AdminService {
       WHERE p.status = 'completed' ${dateFilter}
       GROUP BY DATE(p.payment_date)
       ORDER BY date DESC`,
-      params
+      params,
     );
 
     const [summary] = await pool.execute(
@@ -724,25 +507,24 @@ export class AdminService {
         MAX(p.amount) as max_transaction
       FROM payments p
       WHERE p.status = 'completed' ${dateFilter}`,
-      params
+      params,
     );
 
     return {
-      type: 'revenue',
+      type: "revenue",
       period: { startDate, endDate },
       summary: summary[0],
-      data: revenue.map(item => ({
+      data: revenue.map((item) => ({
         ...item,
         total_revenue: parseFloat(item.total_revenue),
-        avg_transaction: parseFloat(item.avg_transaction)
-      }))
+        avg_transaction: parseFloat(item.avg_transaction),
+      })),
     };
   }
 
   static async generateBookingsReport(startDate, endDate) {
-    const dateFilter = startDate && endDate 
-      ? 'AND b.created_at BETWEEN ? AND ?' 
-      : '';
+    const dateFilter =
+      startDate && endDate ? "AND b.created_at BETWEEN ? AND ?" : "";
     const params = startDate && endDate ? [startDate, endDate] : [];
 
     const [bookings] = await pool.execute(
@@ -756,7 +538,7 @@ export class AdminService {
       WHERE 1=1 ${dateFilter}
       GROUP BY DATE(b.created_at)
       ORDER BY date DESC`,
-      params
+      params,
     );
 
     const [statusDistribution] = await pool.execute(
@@ -767,27 +549,26 @@ export class AdminService {
       FROM bookings b
       WHERE 1=1 ${dateFilter}
       GROUP BY status`,
-      params
+      params,
     );
 
     return {
-      type: 'bookings',
+      type: "bookings",
       period: { startDate, endDate },
-      data: bookings.map(item => ({
+      data: bookings.map((item) => ({
         ...item,
-        total_value: parseFloat(item.total_value || 0)
+        total_value: parseFloat(item.total_value || 0),
       })),
-      status_distribution: statusDistribution.map(item => ({
+      status_distribution: statusDistribution.map((item) => ({
         ...item,
-        total_value: parseFloat(item.total_value || 0)
-      }))
+        total_value: parseFloat(item.total_value || 0),
+      })),
     };
   }
 
   static async generateUsersReport(startDate, endDate) {
-    const dateFilter = startDate && endDate 
-      ? 'AND u.created_at BETWEEN ? AND ?' 
-      : '';
+    const dateFilter =
+      startDate && endDate ? "AND u.created_at BETWEEN ? AND ?" : "";
     const params = startDate && endDate ? [startDate, endDate] : [];
 
     const [users] = await pool.execute(
@@ -801,7 +582,7 @@ export class AdminService {
       WHERE 1=1 ${dateFilter}
       GROUP BY DATE(u.created_at)
       ORDER BY date DESC`,
-      params
+      params,
     );
 
     const [roleDistribution] = await pool.execute(
@@ -812,21 +593,20 @@ export class AdminService {
       JOIN roles r ON u.role_id = r.id
       WHERE 1=1 ${dateFilter}
       GROUP BY r.name`,
-      params
+      params,
     );
 
     return {
-      type: 'users',
+      type: "users",
       period: { startDate, endDate },
       data: users,
-      role_distribution: roleDistribution
+      role_distribution: roleDistribution,
     };
   }
 
   static async generateCompaniesReport(startDate, endDate) {
-    const dateFilter = startDate && endDate 
-      ? 'AND c.created_at BETWEEN ? AND ?' 
-      : '';
+    const dateFilter =
+      startDate && endDate ? "AND c.created_at BETWEEN ? AND ?" : "";
     const params = startDate && endDate ? [startDate, endDate] : [];
 
     const [companies] = await pool.execute(
@@ -844,16 +624,16 @@ export class AdminService {
       WHERE 1=1 ${dateFilter}
       GROUP BY c.id
       ORDER BY total_revenue DESC`,
-      params
+      params,
     );
 
     return {
-      type: 'companies',
+      type: "companies",
       period: { startDate, endDate },
-      data: companies.map(item => ({
+      data: companies.map((item) => ({
         ...item,
-        total_revenue: parseFloat(item.total_revenue || 0)
-      }))
+        total_revenue: parseFloat(item.total_revenue || 0),
+      })),
     };
   }
 }

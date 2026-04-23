@@ -151,6 +151,14 @@ export class NotificationService {
     });
   }
 
+  static async notifyRefundProcessed(userId, refundData) {
+    return await this.createNotification(userId, {
+      title: "Refund Processed",
+      message: `Your refund of $${refundData.amount} has been processed. Transaction reference: ${refundData.transaction_reference}. Expected completion: ${refundData.estimated_completion}`,
+      type: "refund_processed",
+    });
+  }
+
   static async notifyBookingCancelled(userId, bookingData) {
     return await this.createNotification(userId, {
       title: "Booking Cancelled",

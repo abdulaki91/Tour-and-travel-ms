@@ -60,27 +60,37 @@ export interface ItineraryItem {
   activities?: string[];
 }
 
-// Booking Types
+// Booking Types (using the detailed booking type from booking.ts)
 export interface Booking extends BaseEntity {
   user_id: number;
   package_id: number;
+  booking_reference: string;
   booking_date: string;
-  travel_date: string;
+  travel_date?: string;
   number_of_people: number;
   total_amount: number;
   status: BookingStatus;
   special_requests?: string;
-  payment_status: PaymentStatus;
-  package: Package;
-  user: {
+  payment_status?: PaymentStatus;
+  package_title: string;
+  location: string;
+  package?: {
+    id: number;
+    title: string;
+    location: string;
+    price: number;
+    duration_days: number;
+    company_name: string;
+  };
+  user?: {
     name: string;
     email: string;
     phone?: string;
   };
 }
 
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
-export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 // Review Types
 export interface Review extends BaseEntity {
@@ -228,3 +238,8 @@ export type NotificationType =
   | "REVIEW"
   | "SYSTEM"
   | "PROMOTION";
+
+// Re-export all types
+export * from "./user";
+export * from "./booking";
+export * from "./payment";

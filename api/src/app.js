@@ -95,13 +95,18 @@ const startServer = async () => {
   try {
     // Test database connection
     const isConnected = await testConnection();
-    if (!isConnected) {
-      console.error("❌ Failed to connect to database. Exiting...");
-      process.exit(1);
+    if (isConnected) {
+      // Initialize database schema only if connected
+      await initializeDatabase();
+      console.log("✅ Database initialized successfully");
+    } else {
+      console.warn(
+        "⚠️ Database not available. Server will start without database connection.",
+      );
+      console.warn(
+        "⚠️ Database-dependent features will not work until database is available.",
+      );
     }
-
-    // Initialize database schema
-    await initializeDatabase();
 
     // Create HTTP server and initialize Socket.io
     const server = http.createServer(app);
@@ -112,6 +117,12 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+
+      if (!isConnected) {
+        console.log(
+          "⚠️ Note: Database connection failed. Please check your database configuration.",
+        );
+      }
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error.message);

@@ -11,13 +11,13 @@ import {
   BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
-import {
-  userService,
+import { userService } from "../../services/users";
+import type {
   UpdateProfileData,
   ChangePasswordData,
   UpdateCompanyProfileData,
   NotificationPreferences,
-} from "../../services/users";
+} from "../../types/user";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
