@@ -86,7 +86,9 @@ const CompanyPackages: React.FC = () => {
   if (error) {
     return (
       <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
-        <p className="text-error-600 mb-6 font-medium">Failed to load packages</p>
+        <p className="text-error-600 mb-6 font-medium">
+          Failed to load packages
+        </p>
         <Button onClick={() => window.location.reload()}>Try Again</Button>
       </div>
     );
@@ -101,11 +103,18 @@ const CompanyPackages: React.FC = () => {
       <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold font-display mb-2">My Packages</h1>
-            <p className="text-primary-100 text-lg">Manage your tour packages and offerings 📦</p>
+            <h1 className="text-4xl font-bold font-display mb-2">
+              My Packages
+            </h1>
+            <p className="text-primary-100 text-lg">
+              Manage your tour packages and offerings 📦
+            </p>
           </div>
           <Link to="/company/packages/create">
-            <Button size="lg" className="bg-white text-primary-600 hover:bg-gray-100 shadow-lg hover:shadow-xl">
+            <Button
+              size="lg"
+              className="bg-white text-primary-600 hover:bg-gray-100 shadow-lg hover:shadow-xl"
+            >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Package
             </Button>
@@ -135,9 +144,10 @@ const CompanyPackages: React.FC = () => {
           />
 
           {/* Pagination */}
-          {pagination && (
+          {pagination && pagination.totalPages > 1 && (
             <Pagination
-              pagination={pagination}
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
               onPageChange={handlePageChange}
             />
           )}

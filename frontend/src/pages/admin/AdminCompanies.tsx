@@ -31,8 +31,7 @@ interface Company {
   logo?: string;
   is_verified: boolean;
   created_at: string;
-  first_name: string;
-  last_name: string;
+  name: string;
   user_email: string;
   package_count: number;
 }
@@ -322,7 +321,7 @@ const AdminCompanies: React.FC = () => {
       {/* Companies Table */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full dashboard-table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -376,9 +375,7 @@ const AdminCompanies: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {company.first_name} {company.last_name}
-                    </div>
+                    <div className="text-sm text-gray-900">{company.name}</div>
                     <div className="text-sm text-gray-500">
                       {company.user_email}
                     </div>
@@ -500,7 +497,7 @@ const AdminCompanies: React.FC = () => {
                     Owner
                   </label>
                   <p className="text-sm text-gray-900">
-                    {showDetailsModal.first_name} {showDetailsModal.last_name}
+                    {showDetailsModal.name}
                   </p>
                 </div>
                 <div>

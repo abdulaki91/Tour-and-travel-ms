@@ -134,9 +134,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       {/* Sidebar */}
       <div
         className={clsx(
-          "fixed top-0 left-0 z-50 w-72 h-screen pt-20 transition-all duration-300 bg-white/95 backdrop-blur-md border-r border-white/20 shadow-2xl lg:translate-x-0",
+          "fixed top-0 left-0 z-50 w-64 h-screen transition-all duration-300 bg-white/95 backdrop-blur-md border-r border-white/20 shadow-2xl lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
+        style={{ paddingTop: "var(--navbar-height)" }}
       >
         {/* Mobile close button */}
         <button

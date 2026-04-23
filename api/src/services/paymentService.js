@@ -1,16 +1,20 @@
 import pool from "../config/database.js";
 import { generateTransactionReference } from "../utils/jwt.js";
 import { NotificationService } from "./notificationService.js";
+import { PaymentGatewayService } from "./paymentGatewayService.js";
 import { emitPaymentUpdate } from "../socket/index.js";
 
 export class PaymentService {
   static async createPayment(bookingId, paymentData) {
-    const { amount, payment_method } = paymentData;
+    const { amount, payment_method, user_phone, return_url } = paymentData;
     const transaction_reference = generateTransactionReference();
 
     // Verify booking exists
     const [bookings] = await pool.execute(
-      "SELECT * FROM bookings WHERE id = ?",
+      `SELECT b.*, u.email, u.phone, u.name 
+       FROM bookings b 
+       JOIN users u ON b.user_id = u.id 
+       WHERE b.id = ?`,
       [bookingId],
     );
 
@@ -25,14 +29,86 @@ export class PaymentService {
       throw new Error("Payment amount does not match booking total");
     }
 
+    // Calculate payment fees
+    const fees = PaymentGatewayService.getPaymentFees(payment_method, amount);
+    const total_amount = parseFloat(amount) + fees;
+
     // Create payment record
     const [result] = await pool.execute(
-      `INSERT INTO payments (booking_id, amount, payment_method, transaction_reference, status) 
-       VALUES (?, ?, ?, ?, 'pending')`,
-      [bookingId, amount, payment_method, transaction_reference],
+      `INSERT INTO payments (booking_id, amount, fees, total_amount, payment_method, transaction_reference, status) 
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        bookingId,
+        amount,
+        fees,
+        total_amount,
+        payment_method,
+        transaction_reference,
+      ],
     );
 
-    return await this.getPaymentById(result.insertId);
+    const paymentId = result.insertId;
+
+    // Initialize payment with gateway
+    let gatewayResponse;
+    try {
+      const gatewayPaymentData = {
+        amount: total_amount,
+        booking_reference: booking.booking_reference,
+        user_email: booking.email,
+        user_phone: user_phone || booking.phone,
+        return_url: return_url || `${process.env.FRONTEND_URL}/user/bookings`,
+      };
+
+      switch (payment_method) {
+        case "telebirr":
+          gatewayResponse =
+            await PaymentGatewayService.initiateTelebirrPayment(
+              gatewayPaymentData,
+            );
+          break;
+        case "chapa":
+          gatewayResponse =
+            await PaymentGatewayService.initiateChapaPayment(
+              gatewayPaymentData,
+            );
+          break;
+        case "bank_transfer":
+          gatewayResponse =
+            PaymentGatewayService.generateBankTransferInstructions(
+              gatewayPaymentData,
+            );
+          break;
+        default:
+          throw new Error("Unsupported payment method");
+      }
+
+      // Update payment with gateway response
+      await pool.execute(
+        `UPDATE payments 
+         SET gateway_transaction_id = ?, gateway_response = ?, payment_url = ?
+         WHERE id = ?`,
+        [
+          gatewayResponse.transaction_id,
+          JSON.stringify(gatewayResponse),
+          gatewayResponse.payment_url || null,
+          paymentId,
+        ],
+      );
+    } catch (gatewayError) {
+      // Update payment status to failed
+      await pool.execute(
+        'UPDATE payments SET status = "failed", failure_reason = ? WHERE id = ?',
+        [gatewayError.message, paymentId],
+      );
+      throw gatewayError;
+    }
+
+    const payment = await this.getPaymentById(paymentId);
+    return {
+      ...payment,
+      gateway_response: gatewayResponse,
+    };
   }
 
   static async getPaymentById(id) {
@@ -42,8 +118,7 @@ export class PaymentService {
         b.booking_reference,
         b.user_id,
         pkg.title as package_title,
-        u.first_name,
-        u.last_name,
+        u.name,
         u.email
       FROM payments p
       JOIN bookings b ON p.booking_id = b.id
@@ -56,16 +131,42 @@ export class PaymentService {
     return payments.length > 0 ? payments[0] : null;
   }
 
-  static async processPayment(paymentId, status = "completed") {
+  static async processPayment(
+    paymentId,
+    status = "completed",
+    gatewayData = {},
+  ) {
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
 
+      // Get current payment details
+      const [currentPayments] = await connection.execute(
+        "SELECT * FROM payments WHERE id = ?",
+        [paymentId],
+      );
+
+      if (currentPayments.length === 0) {
+        throw new Error("Payment not found");
+      }
+
+      const currentPayment = currentPayments[0];
+
       // Update payment status
       const [paymentResult] = await connection.execute(
-        "UPDATE payments SET status = ?, payment_date = CURRENT_TIMESTAMP WHERE id = ?",
-        [status, paymentId],
+        `UPDATE payments 
+         SET status = ?, 
+             payment_date = CURRENT_TIMESTAMP,
+             gateway_verification_data = ?,
+             verified_amount = ?
+         WHERE id = ?`,
+        [
+          status,
+          JSON.stringify(gatewayData),
+          gatewayData.amount || currentPayment.amount,
+          paymentId,
+        ],
       );
 
       if (paymentResult.affectedRows === 0) {
@@ -154,6 +255,137 @@ export class PaymentService {
     }
   }
 
+  static async verifyPayment(paymentId) {
+    const payment = await this.getPaymentById(paymentId);
+    if (!payment) {
+      throw new Error("Payment not found");
+    }
+
+    if (payment.status !== "pending") {
+      return payment; // Already processed
+    }
+
+    let verificationResult;
+    try {
+      switch (payment.payment_method) {
+        case "telebirr":
+          verificationResult =
+            await PaymentGatewayService.verifyTelebirrPayment(
+              payment.gateway_transaction_id,
+            );
+          break;
+        case "chapa":
+          verificationResult = await PaymentGatewayService.verifyChapaPayment(
+            payment.gateway_transaction_id,
+          );
+          break;
+        case "bank_transfer":
+          // Bank transfers need manual verification
+          return payment;
+        default:
+          throw new Error("Unsupported payment method for verification");
+      }
+
+      // Process payment based on verification result
+      const status = verificationResult.success ? "completed" : "failed";
+      return await this.processPayment(paymentId, status, verificationResult);
+    } catch (error) {
+      console.error("Payment verification failed:", error);
+      return await this.processPayment(paymentId, "failed", {
+        error: error.message,
+      });
+    }
+  }
+
+  static async processRefund(paymentId, refundData) {
+    const { amount, reason } = refundData;
+
+    const payment = await this.getPaymentById(paymentId);
+    if (!payment) {
+      throw new Error("Payment not found");
+    }
+
+    if (payment.status !== "completed") {
+      throw new Error("Can only refund completed payments");
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Create refund record
+      const [refundResult] = await connection.execute(
+        `INSERT INTO payment_refunds (payment_id, amount, reason, status, requested_by)
+         VALUES (?, ?, ?, 'pending', ?)`,
+        [paymentId, amount, reason, "system"], // In production, use actual admin user ID
+      );
+
+      const refundId = refundResult.insertId;
+
+      // Process refund through gateway
+      const gatewayRefundData = {
+        transaction_id: payment.gateway_transaction_id,
+        amount: amount,
+        reason: reason,
+        payment_method: payment.payment_method,
+      };
+
+      const refundResponse =
+        await PaymentGatewayService.processRefund(gatewayRefundData);
+
+      // Update refund record with gateway response
+      await connection.execute(
+        `UPDATE payment_refunds 
+         SET gateway_refund_id = ?, gateway_response = ?, status = ?
+         WHERE id = ?`,
+        [
+          refundResponse.refund_id,
+          JSON.stringify(refundResponse),
+          refundResponse.status,
+          refundId,
+        ],
+      );
+
+      // Update payment status if full refund
+      if (parseFloat(amount) >= parseFloat(payment.amount)) {
+        await connection.execute(
+          'UPDATE payments SET status = "refunded" WHERE id = ?',
+          [paymentId],
+        );
+
+        // Update booking status
+        await connection.execute(
+          'UPDATE bookings SET status = "cancelled" WHERE id = ?',
+          [payment.booking_id],
+        );
+      }
+
+      await connection.commit();
+
+      // Send notification
+      try {
+        await NotificationService.notifyRefundProcessed(payment.user_id, {
+          amount: amount,
+          transaction_reference: payment.transaction_reference,
+          estimated_completion: refundResponse.estimated_completion,
+        });
+      } catch (notificationError) {
+        console.error("Error sending refund notification:", notificationError);
+      }
+
+      return {
+        refund_id: refundId,
+        ...refundResponse,
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
   static async getBookingPayments(bookingId) {
     const [payments] = await pool.execute(
       "SELECT * FROM payments WHERE booking_id = ? ORDER BY created_at DESC",
@@ -218,6 +450,48 @@ export class PaymentService {
         items_per_page: limit,
       },
     };
+  }
+
+  static async handleWebhook(provider, payload, signature) {
+    try {
+      // Verify webhook signature
+      const secret =
+        provider === "telebirr"
+          ? process.env.TELEBIRR_WEBHOOK_SECRET
+          : process.env.CHAPA_WEBHOOK_SECRET;
+
+      if (
+        !PaymentGatewayService.verifyWebhookSignature(
+          payload,
+          signature,
+          secret,
+        )
+      ) {
+        throw new Error("Invalid webhook signature");
+      }
+
+      // Find payment by gateway transaction ID
+      const [payments] = await pool.execute(
+        "SELECT id FROM payments WHERE gateway_transaction_id = ?",
+        [payload.transaction_id || payload.tx_ref],
+      );
+
+      if (payments.length === 0) {
+        console.warn("Webhook received for unknown payment:", payload);
+        return;
+      }
+
+      const paymentId = payments[0].id;
+
+      // Process payment based on webhook status
+      const status = payload.status === "success" ? "completed" : "failed";
+      await this.processPayment(paymentId, status, payload);
+
+      return { success: true };
+    } catch (error) {
+      console.error("Webhook processing failed:", error);
+      throw error;
+    }
   }
 
   static async mockPaymentProcess(paymentId, shouldSucceed = true) {

@@ -320,7 +320,7 @@ const AdminUsers: React.FC = () => {
       {/* Users Table */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full dashboard-table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -351,8 +351,7 @@ const AdminUsers: React.FC = () => {
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center">
                           <span className="text-white font-medium text-sm">
-                            {user.first_name?.[0]}
-                            {user.last_name?.[0]}
+                            {user.name?.[0]?.toUpperCase()}
                           </span>
                         </div>
                       </div>

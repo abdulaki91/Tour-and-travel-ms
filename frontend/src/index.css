@@ -5,6 +5,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dashboard Layout Constants */
+:root {
+  --navbar-height: 80px;
+}
+
+/* Responsive table improvements */
+@media (max-width: 768px) {
+  .dashboard-table {
+    font-size: 0.875rem;
+  }
+
+  .dashboard-table th,
+  .dashboard-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+/* Ensure no horizontal overflow in dashboard */
+.dashboard-content {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.dashboard-content * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 :root {
   /* Modern Color Palette */
   --primary-50: #f0f9ff;

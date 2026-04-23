@@ -14,34 +14,42 @@ import {
   HeartIcon,
   TrophyIcon,
   FireIcon,
+  CogIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../context/AuthContext";
 import { bookingService } from "../../services/bookings";
+import { userService } from "../../services/users";
 import { useSocket } from "../../context/SocketContext";
 import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import Badge from "../../components/ui/Badge";
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
   const { unreadCount } = useSocket();
 
-  const { data: bookingsData, isLoading } = useQuery({
+  const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
     queryKey: ["user-bookings"],
     queryFn: () => bookingService.getUserBookings({ limit: 5 }),
   });
 
-  const { data: statsData } = useQuery({
+  const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["user-stats"],
-    queryFn: () => bookingService.getUserBookings({ limit: 100 }), // Get more for stats
+    queryFn: () => userService.getUserStats(),
   });
 
   const recentBookings = bookingsData?.data.items || [];
-  const allBookings = statsData?.data.items || [];
+  const stats = statsData || {
+    bookings: { total_bookings: 0, confirmed_bookings: 0, completed_bookings: 0, cancelled_bookings: 0, total_spent: 0 },
+    reviews: { total_reviews: 0, average_rating: 0 },
+    recent_bookings: []
+  };
 
-  const stats = [
+  const dashboardStats = [
     {
       title: "Total Bookings",
-      value: allBookings.length,
+      value: stats.bookings.total_bookings,
       icon: CalendarIcon,
       color: "blue",
       change: "+12%",
@@ -49,7 +57,7 @@ const UserDashboard: React.FC = () => {
     },
     {
       title: "Completed Tours",
-      value: allBookings.filter((b) => b.status === "completed").length,
+      value: stats.bookings.completed_bookings,
       icon: TrophyIcon,
       color: "green",
       change: "+8%",
@@ -57,7 +65,7 @@ const UserDashboard: React.FC = () => {
     },
     {
       title: "Upcoming Tours",
-      value: allBookings.filter((b) => b.status === "confirmed").length,
+      value: stats.bookings.confirmed_bookings,
       icon: ClockIcon,
       color: "orange",
       change: "+3",
@@ -65,7 +73,7 @@ const UserDashboard: React.FC = () => {
     },
     {
       title: "Total Spent",
-      value: `$${allBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0).toLocaleString()}`,
+      value: `$${stats.bookings.total_spent.toLocaleString()}`,
       icon: CreditCardIcon,
       color: "purple",
       change: "+15%",
@@ -78,6 +86,242 @@ const UserDashboard: React.FC = () => {
       title: "Browse Packages",
       description: "Discover amazing tour packages",
       icon: GlobeAltIcon,
+      href: "/packages",
+      color: "primary",
+    },
+    {
+      title: "My Bookings",
+      description: "View and manage your bookings",
+      icon: CalendarIcon,
+      href: "/user/bookings",
+      color: "success",
+    },
+    {
+      title: "Notifications",
+      description: "Check your notifications",
+      icon: BellIcon,
+      href: "/notifications",
+      color: "accent",
+      badge: unreadCount > 0 ? unreadCount : undefined,
+    },
+    {
+      title: "Profile Settings",
+      description: "Update your profile information",
+      icon: CogIcon,
+      href: "/user/profile",
+      color: "secondary",
+    },
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "cancelled":
+        return "error";
+      case "completed":
+        return "primary";
+      default:
+        return "gray";
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  if (bookingsLoading || statsLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      {/* Welcome Header */}
+      <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold font-display mb-2">
+              Welcome back, {user?.name}! 🌟
+            </h1>
+            <p className="text-primary-100 text-lg">
+              Ready for your next adventure?
+            </p>
+          </div>
+          <div className="hidden md:block">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <UserIcon className="h-16 w-16 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {dashboardStats.map((stat, index) => (
+          <div
+            key={index}
+            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-100 group hover:scale-105"
+          >
+            <div className="flex items-center">
+              <div className={`flex-shrink-0 p-3 bg-gradient-to-br from-${stat.color}-500 to-${stat.color}-600 rounded-xl shadow-lg group-hover:shadow-${stat.color}-200`}>
+                <stat.icon className="h-8 w-8 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                  {stat.title}
+                </p>
+                <p className="text-3xl font-bold text-gray-900 font-display">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 font-display">
+          Quick Actions
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {quickActions.map((action, index) => (
+            <Link
+              key={index}
+              to={action.href}
+              className="group relative bg-gradient-to-br from-gray-50 to-gray-100 hover:from-white hover:to-gray-50 rounded-xl p-6 transition-all duration-300 hover:shadow-lg border border-gray-200 hover:border-gray-300"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-3 bg-gradient-to-br from-${action.color}-500 to-${action.color}-600 rounded-lg shadow-md group-hover:shadow-lg transition-shadow`}>
+                  <action.icon className="h-6 w-6 text-white" />
+                </div>
+                {action.badge && (
+                  <Badge variant="error" size="sm">
+                    {action.badge}
+                  </Badge>
+                )}
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                {action.title}
+              </h3>
+              <p className="text-sm text-gray-600">{action.description}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Bookings */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 font-display">
+            Recent Bookings
+          </h2>
+          <Link to="/user/bookings">
+            <Button variant="outline" size="sm">
+              <EyeIcon className="h-4 w-4 mr-2" />
+              View All
+            </Button>
+          </Link>
+        </div>
+
+        {recentBookings.length === 0 ? (
+          <div className="text-center py-12">
+            <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-500 mb-2">
+              No bookings yet
+            </h3>
+            <p className="text-gray-400 mb-6">
+              Start exploring our amazing tour packages!
+            </p>
+            <Link to="/packages">
+              <Button>
+                <GlobeAltIcon className="h-5 w-5 mr-2" />
+                Browse Packages
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {recentBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
+                      <MapPinIcon className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">
+                      {booking.package_title}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {booking.location} • {formatDate(booking.booking_date)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Ref: {booking.booking_reference}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Badge variant={getStatusColor(booking.status)} size="sm">
+                    {booking.status}
+                  </Badge>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                    ${booking.total_amount.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Travel Tips */}
+      <div className="bg-gradient-to-r from-accent-500 to-secondary-500 rounded-2xl p-8 text-white shadow-xl">
+        <div className="flex items-center mb-6">
+          <FireIcon className="h-8 w-8 mr-3" />
+          <h2 className="text-2xl font-bold font-display">Travel Tips</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <h3 className="font-semibold mb-2">📱 Stay Connected</h3>
+            <p className="text-sm text-accent-100">
+              Download offline maps and keep emergency contacts handy during your travels.
+            </p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <h3 className="font-semibold mb-2">🎒 Pack Smart</h3>
+            <p className="text-sm text-accent-100">
+              Check weather conditions and pack accordingly. Don't forget essentials like sunscreen!
+            </p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <h3 className="font-semibold mb-2">💡 Book Early</h3>
+            <p className="text-sm text-accent-100">
+              Get better deals and ensure availability by booking your tours in advance.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default UserDashboard;
       href: "/packages",
       color: "blue",
       badge: "Popular",

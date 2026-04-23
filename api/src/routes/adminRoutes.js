@@ -14,6 +14,10 @@ const companyIdValidation = Joi.object({
   companyId: Joi.number().integer().positive().required(),
 });
 
+const reviewIdValidation = Joi.object({
+  reviewId: Joi.number().integer().positive().required(),
+});
+
 const userStatusValidation = Joi.object({
   is_active: Joi.boolean().required(),
 });
@@ -22,13 +26,20 @@ const companyVerificationValidation = Joi.object({
   is_verified: Joi.boolean().required(),
 });
 
+const reportTypeValidation = Joi.object({
+  type: Joi.string()
+    .valid("revenue", "bookings", "users", "companies")
+    .required(),
+});
+
 // All admin routes require ADMIN role
 router.use(authenticate);
 router.use(authorize("ADMIN"));
 
 // Dashboard and Stats
 router.get("/dashboard", AdminController.getDashboard);
-router.get("/stats", AdminController.getDashboard); // Add stats endpoint that uses same controller
+router.get("/stats", AdminController.getStats);
+router.get("/health", AdminController.getSystemHealth);
 
 // User management
 router.get("/users", AdminController.getAllUsers);
@@ -47,10 +58,41 @@ router.delete(
 // Company management
 router.get("/companies", AdminController.getAllCompanies);
 router.patch(
+  "/companies/:companyId/status",
+  validateParams(companyIdValidation),
+  validate(companyVerificationValidation),
+  AdminController.verifyCompany,
+);
+router.patch(
   "/companies/:companyId/verify",
   validateParams(companyIdValidation),
   validate(companyVerificationValidation),
   AdminController.verifyCompany,
+);
+router.delete(
+  "/companies/:companyId",
+  validateParams(companyIdValidation),
+  AdminController.deleteCompany,
+);
+
+// Review management
+router.get("/reviews", AdminController.getAllReviews);
+router.delete(
+  "/reviews/:reviewId",
+  validateParams(reviewIdValidation),
+  AdminController.deleteReview,
+);
+
+// Reports
+router.get(
+  "/reports/:type",
+  validateParams(reportTypeValidation),
+  AdminController.generateReport,
+);
+router.get(
+  "/reports/:type/export",
+  validateParams(reportTypeValidation),
+  AdminController.exportReport,
 );
 
 export default router;

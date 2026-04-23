@@ -127,9 +127,10 @@ const UserBookings: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {pagination && (
+          {pagination && pagination.totalPages > 1 && (
             <Pagination
-              pagination={pagination}
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
               onPageChange={handlePageChange}
             />
           )}

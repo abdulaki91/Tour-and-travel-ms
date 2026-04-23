@@ -1,11 +1,14 @@
-import api from "./api";
+import { api } from "./api";
 
 export interface Payment {
   id: number;
   booking_id: number;
   amount: number;
+  fees?: number;
+  total_amount?: number;
   payment_method: string;
   transaction_reference: string;
+  gateway_transaction_id?: string;
   status: "pending" | "completed" | "failed" | "refunded";
   payment_date?: string;
   created_at: string;
@@ -13,11 +16,15 @@ export interface Payment {
   booking_reference?: string;
   package_title?: string;
   package_location?: string;
+  payment_url?: string;
+  gateway_response?: any;
 }
 
 export interface CreatePaymentData {
   amount: number;
-  payment_method: "telebirr" | "chapa" | "bank_transfer" | "cash";
+  payment_method: "telebirr" | "chapa" | "bank_transfer";
+  user_phone?: string;
+  return_url?: string;
 }
 
 export interface PaymentFilters {
@@ -41,7 +48,12 @@ export interface PaymentsResponse {
   };
 }
 
-export const paymentsService = {
+export interface RefundData {
+  amount: number;
+  reason: string;
+}
+
+export const paymentService = {
   async createPayment(
     bookingId: number,
     data: CreatePaymentData,
@@ -55,6 +67,21 @@ export const paymentsService = {
     success: boolean = true,
   ): Promise<{ success: boolean; data: Payment }> {
     const response = await api.post(`/payments/${id}/process`, { success });
+    return response.data;
+  },
+
+  async verifyPayment(
+    id: number,
+  ): Promise<{ success: boolean; data: Payment }> {
+    const response = await api.get(`/payments/${id}/verify`);
+    return response.data;
+  },
+
+  async processRefund(
+    id: number,
+    data: RefundData,
+  ): Promise<{ success: boolean; data: any }> {
+    const response = await api.post(`/payments/${id}/refund`, data);
     return response.data;
   },
 
@@ -84,4 +111,52 @@ export const paymentsService = {
     const response = await api.get(`/payments/booking/${bookingId}`);
     return response.data;
   },
+
+  // Utility functions
+  getPaymentMethodName(method: string): string {
+    const methods: Record<string, string> = {
+      telebirr: "Telebirr",
+      chapa: "Chapa",
+      bank_transfer: "Bank Transfer",
+      credit_card: "Credit Card",
+      debit_card: "Debit Card",
+      mobile_money: "Mobile Money",
+    };
+    return methods[method] || method;
+  },
+
+  getStatusColor(status: string): "success" | "warning" | "error" | "gray" {
+    switch (status) {
+      case "completed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "failed":
+        return "error";
+      case "refunded":
+        return "gray";
+      default:
+        return "gray";
+    }
+  },
+
+  formatAmount(amount: number, currency: string = "ETB"): string {
+    return `${amount.toLocaleString()} ${currency}`;
+  },
+
+  calculateFees(method: string, amount: number): number {
+    switch (method) {
+      case "telebirr":
+        return Math.min(Math.max(amount * 0.015 + 5, 5), 100);
+      case "chapa":
+        return Math.min(Math.max(amount * 0.025, 2), 200);
+      case "bank_transfer":
+        return 10;
+      default:
+        return 0;
+    }
+  },
 };
+
+// Keep the old export for backward compatibility
+export const paymentsService = paymentService;

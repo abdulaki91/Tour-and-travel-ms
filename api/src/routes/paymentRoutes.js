@@ -23,6 +23,11 @@ const bookingIdValidation = Joi.object({
   bookingId: Joi.number().integer().positive().required(),
 });
 
+const refundValidation = Joi.object({
+  amount: Joi.number().positive().required(),
+  reason: Joi.string().required(),
+});
+
 // User routes
 router.post(
   "/booking/:bookingId",
@@ -40,6 +45,25 @@ router.post(
   validateParams(idValidation),
   validate(processPaymentValidation),
   PaymentController.processPayment,
+);
+
+// Verify payment status
+router.get(
+  "/:id/verify",
+  authenticate,
+  authorize("USER"),
+  validateParams(idValidation),
+  PaymentController.verifyPayment,
+);
+
+// Process refund (admin only)
+router.post(
+  "/:id/refund",
+  authenticate,
+  authorize("ADMIN"),
+  validateParams(idValidation),
+  validate(refundValidation),
+  PaymentController.processRefund,
 );
 
 router.get(
@@ -65,5 +89,9 @@ router.get(
   validateParams(bookingIdValidation),
   PaymentController.getBookingPayments,
 );
+
+// Webhook endpoints (no authentication required)
+router.post("/telebirr/webhook", PaymentController.handleTelebirrWebhook);
+router.post("/chapa/webhook", PaymentController.handleChapaWebhook);
 
 export default router;

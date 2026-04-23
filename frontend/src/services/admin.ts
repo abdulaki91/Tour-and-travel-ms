@@ -32,6 +32,41 @@ export interface CompanyFilters {
   sort_order?: "asc" | "desc";
 }
 
+export interface ReviewFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  rating?: number;
+  package_id?: number;
+  user_id?: number;
+  sort_by?: "created_at" | "rating";
+  sort_order?: "asc" | "desc";
+}
+
+export interface NotificationFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  is_read?: boolean;
+  user_id?: number;
+  sort_by?: "created_at";
+  sort_order?: "asc" | "desc";
+}
+
+export interface SystemSettings {
+  site_name: string;
+  site_description: string;
+  contact_email: string;
+  contact_phone: string;
+  maintenance_mode: boolean;
+  registration_enabled: boolean;
+  email_notifications: boolean;
+  sms_notifications: boolean;
+  max_upload_size: number;
+  allowed_file_types: string[];
+}
+
 export const adminService = {
   async getStats(): Promise<ApiResponse<AdminStats>> {
     const response = await api.get("/admin/stats");
@@ -96,6 +131,100 @@ export const adminService = {
 
   async deleteCompany(companyId: number): Promise<ApiResponse<void>> {
     const response = await api.delete(`/admin/companies/${companyId}`);
+    return response.data;
+  },
+
+  // Reviews management
+  async getAllReviews(
+    filters: ReviewFilters = {},
+  ): Promise<PaginatedResponse<any>> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/admin/reviews?${params.toString()}`);
+    return response.data;
+  },
+
+  async deleteReview(reviewId: number): Promise<ApiResponse<void>> {
+    const response = await api.delete(`/admin/reviews/${reviewId}`);
+    return response.data;
+  },
+
+  async moderateReview(
+    reviewId: number,
+    action: "approve" | "reject",
+  ): Promise<ApiResponse<any>> {
+    const response = await api.patch(`/admin/reviews/${reviewId}/moderate`, {
+      action,
+    });
+    return response.data;
+  },
+
+  // Notifications management
+  async getAllNotifications(
+    filters: NotificationFilters = {},
+  ): Promise<PaginatedResponse<any>> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/admin/notifications?${params.toString()}`);
+    return response.data;
+  },
+
+  async sendBulkNotification(data: {
+    title: string;
+    message: string;
+    type: string;
+    user_ids?: number[];
+    send_to_all?: boolean;
+  }): Promise<ApiResponse<void>> {
+    const response = await api.post("/admin/notifications/bulk", data);
+    return response.data;
+  },
+
+  async deleteNotification(notificationId: number): Promise<ApiResponse<void>> {
+    const response = await api.delete(`/admin/notifications/${notificationId}`);
+    return response.data;
+  },
+
+  // System settings
+  async getSettings(): Promise<ApiResponse<SystemSettings>> {
+    const response = await api.get("/admin/settings");
+    return response.data;
+  },
+
+  async updateSettings(
+    settings: Partial<SystemSettings>,
+  ): Promise<ApiResponse<SystemSettings>> {
+    const response = await api.put("/admin/settings", settings);
+    return response.data;
+  },
+
+  async getSystemLogs(
+    filters: {
+      page?: number;
+      limit?: number;
+      level?: string;
+      start_date?: string;
+      end_date?: string;
+    } = {},
+  ): Promise<PaginatedResponse<any>> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/admin/logs?${params.toString()}`);
     return response.data;
   },
 };
