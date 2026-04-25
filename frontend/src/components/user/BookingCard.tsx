@@ -14,7 +14,7 @@ interface Booking {
   id: number;
   status: BookingStatus;
   payment_status: string;
-  travel_date: string;
+  booking_date: string;
   number_of_people: number;
   total_amount: number;
   special_requests?: string;
@@ -67,7 +67,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
               <div className="flex items-center bg-gray-50 rounded-xl p-3">
                 <CalendarIcon className="h-5 w-5 mr-3 text-primary-500" />
                 <span className="font-medium">
-                  {new Date(booking.travel_date).toLocaleDateString()}
+                  {new Date(booking.booking_date).toLocaleDateString()}
                 </span>
               </div>
               <div className="flex items-center bg-gray-50 rounded-xl p-3">

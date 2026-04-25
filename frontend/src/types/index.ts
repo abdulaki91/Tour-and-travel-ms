@@ -66,7 +66,6 @@ export interface Booking extends BaseEntity {
   package_id: number;
   booking_reference: string;
   booking_date: string;
-  travel_date?: string;
   number_of_people: number;
   total_amount: number;
   status: BookingStatus;
@@ -177,7 +176,7 @@ export interface PackageFormData {
 }
 
 export interface BookingFormData {
-  travel_date: string;
+  booking_date: string;
   number_of_people: number;
   special_requests?: string;
 }

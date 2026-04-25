@@ -9,7 +9,7 @@ import type {
 export interface CreateBookingData {
   package_id: number;
   number_of_people: number;
-  travel_date: string;
+  booking_date: string;
   special_requests?: string;
 }
 

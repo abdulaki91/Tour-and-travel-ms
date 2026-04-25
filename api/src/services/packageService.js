@@ -119,7 +119,7 @@ export class PackageService {
       LEFT JOIN reviews r ON p.id = r.package_id
       ${whereClause}
       GROUP BY p.id
-      ORDER BY ${orderBy} ${sort_order.toUpperCase()}
+      ORDER BY ${orderBy} ${sort_order.toUpperCase()}, p.id DESC
       LIMIT ? OFFSET ?
     `;
 

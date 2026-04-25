@@ -7,11 +7,11 @@ export const createBookingValidation = Joi.object({
     "number.positive": "Package ID must be positive",
     "any.required": "Package ID is required",
   }),
-  number_of_people: Joi.number().integer().min(1).max(20).required().messages({
+  number_of_people: Joi.number().integer().min(1).max(100).required().messages({
     "number.base": "Number of people must be a number",
     "number.integer": "Number of people must be a whole number",
     "number.min": "At least 1 person is required",
-    "number.max": "Cannot book for more than 20 people",
+    "number.max": "Cannot book for more than 100 people",
     "any.required": "Number of people is required",
   }),
   booking_date: Joi.date().min("now").required().messages({

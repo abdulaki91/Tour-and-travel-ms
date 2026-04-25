@@ -72,7 +72,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
     // Create booking using fixed package start_date
     createBookingMutation.mutate({
       package_id: pkg.id,
-      travel_date: pkg.start_date,
+      booking_date: pkg.start_date,
       number_of_people: data.number_of_people,
       special_requests: data.special_requests,
     });
