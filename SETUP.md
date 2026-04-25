@@ -125,7 +125,7 @@
 ### Frontend Features:
 
 - ✅ Responsive design with modern UI
-- ✅ User dashboard with statistics and quick actions
+- ✅ User dashboard with statistics and recent bookings
 - ✅ Company dashboard with package and booking management
 - ✅ Admin panel with user, company, and review management
 - ✅ Complete payment flow with multiple payment methods

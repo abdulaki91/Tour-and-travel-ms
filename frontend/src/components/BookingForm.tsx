@@ -11,7 +11,6 @@ import Button from "./ui/Button";
 import Input from "./ui/Input";
 
 const bookingSchema = z.object({
-  travel_date: z.string().min(1, "Travel date is required"),
   number_of_people: z
     .number()
     .min(1, "At least 1 person required")
@@ -70,18 +69,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
       return;
     }
 
-    // Create booking
+    // Create booking using fixed package start_date
     createBookingMutation.mutate({
       package_id: pkg.id,
-      travel_date: data.travel_date,
+      travel_date: pkg.start_date,
       number_of_people: data.number_of_people,
       special_requests: data.special_requests,
     });
   };
-
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 1); // Tomorrow
-  const maxDate = new Date(pkg.end_date);
 
   if (step === "payment") {
     return (
@@ -91,7 +86,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Package:</span>
-              <span>{pkg.title}</span>
+              <span className="font-medium">{pkg.title}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tour Dates:</span>
+              <span className="text-primary-600 font-medium">
+                {new Date(pkg.start_date).toLocaleDateString()} -{" "}
+                {new Date(pkg.end_date).toLocaleDateString()}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Number of People:</span>
@@ -142,25 +144,25 @@ const BookingForm: React.FC<BookingFormProps> = ({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-900 mb-2">{pkg.title}</h3>
+        <h3 className="font-semibold text-gray-900 mb-1">{pkg.title}</h3>
         <div className="text-sm text-gray-600">
           <p>
             {pkg.location} • {pkg.duration_days} days
           </p>
-          <p className="mt-1">${pkg.price} per person</p>
+          <div className="mt-2 p-2 bg-primary-50 rounded border border-primary-100 text-primary-700">
+            <p className="font-semibold">Fixed Tour Dates:</p>
+            <p>
+              {new Date(pkg.start_date).toLocaleDateString()} to{" "}
+              {new Date(pkg.end_date).toLocaleDateString()}
+            </p>
+          </div>
+          <p className="mt-2 text-lg font-bold text-gray-900">
+            ${pkg.price} <span className="text-sm font-normal text-gray-500">per person</span>
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Travel Date"
-          type="date"
-          {...register("travel_date")}
-          error={errors.travel_date?.message}
-          min={minDate.toISOString().split("T")[0]}
-          max={maxDate.toISOString().split("T")[0]}
-        />
-
+      <div className="grid grid-cols-1 gap-4">
         <Input
           label="Number of People"
           type="number"
@@ -178,7 +180,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         <textarea
           {...register("special_requests")}
           rows={3}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
           placeholder="Any special requirements or requests..."
         />
       </div>
@@ -186,7 +188,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="flex justify-between items-center">
           <span className="font-medium">Total Amount:</span>
-          <span className="text-xl font-bold text-indigo-600">
+          <span className="text-xl font-bold text-primary-600">
             ${totalAmount}
           </span>
         </div>

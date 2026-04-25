@@ -34,13 +34,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initAuth = async () => {
       try {
         const token = authService.getToken();
-        if (token) {
-          const response = await authService.getProfile();
-          if (response.success) {
-            setUser(response.data);
-          } else {
-            authService.logout();
+        const storedUser = authService.getUser();
+
+        console.log(
+          "Auth Init - Token:",
+          !!token,
+          "Stored User:",
+          !!storedUser,
+        );
+
+        if (token && storedUser) {
+          // Try to get fresh profile data
+          try {
+            console.log("Fetching fresh profile...");
+            const response = await authService.getProfile();
+            console.log("Profile response:", response);
+            if (response.success) {
+              setUser(response.data);
+              console.log("Set user from API:", response.data);
+            } else {
+              // If API fails but we have stored user, use it
+              setUser(storedUser);
+              console.log("Using stored user:", storedUser);
+            }
+          } catch (error) {
+            // If API fails but we have stored user, use it
+            console.warn(
+              "Failed to fetch fresh profile, using stored user:",
+              error,
+            );
+            setUser(storedUser);
           }
+        } else if (token || storedUser) {
+          // Clear inconsistent auth state
+          console.log("Clearing inconsistent auth state");
+          authService.logout();
         }
       } catch (error) {
         console.error("Auth initialization error:", error);

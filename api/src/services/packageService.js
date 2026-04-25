@@ -94,6 +94,18 @@ export class PackageService {
         ? `WHERE ${whereConditions.join(" AND ")}`
         : "";
 
+    // Map frontend sort fields to backend column names
+    const sortFieldMap = {
+      price: "p.price",
+      duration: "p.duration_days",
+      duration_days: "p.duration_days",
+      created_at: "p.created_at",
+      title: "p.title",
+      rating: "average_rating",
+    };
+
+    const orderBy = sortFieldMap[sort_by] || "p.created_at";
+
     // Get packages with company info and average rating
     const query = `
       SELECT 
@@ -101,13 +113,13 @@ export class PackageService {
         c.company_name,
         c.logo as company_logo,
         COALESCE(AVG(r.rating), 0) as average_rating,
-        COUNT(r.id) as review_count
+        COUNT(DISTINCT r.id) as review_count
       FROM packages p
       JOIN companies c ON p.company_id = c.id
       LEFT JOIN reviews r ON p.id = r.package_id
       ${whereClause}
       GROUP BY p.id
-      ORDER BY p.${sort_by} ${sort_order.toUpperCase()}
+      ORDER BY ${orderBy} ${sort_order.toUpperCase()}
       LIMIT ? OFFSET ?
     `;
 

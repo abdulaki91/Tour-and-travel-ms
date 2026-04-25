@@ -48,6 +48,7 @@ const AdminCompanies: React.FC = () => {
   const [showDetailsModal, setShowDetailsModal] = useState<Company | null>(
     null,
   );
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const queryClient = useQueryClient();
@@ -97,6 +98,18 @@ const AdminCompanies: React.FC = () => {
     },
   });
 
+  const createCompanyMutation = useMutation({
+    mutationFn: (companyData: any) => adminService.createCompany(companyData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success("Company created successfully");
+      setShowCreateModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to create company");
+    },
+  });
+
   const handleVerifyCompany = (companyId: number, isVerified: boolean) => {
     verifyCompanyMutation.mutate({
       companyId,
@@ -142,8 +155,8 @@ const AdminCompanies: React.FC = () => {
     );
   }
 
-  const companies = companiesData?.data?.companies || [];
-  const pagination = companiesData?.data?.pagination;
+  const companies = companiesData?.data?.items || [];
+  const pagination = companiesData?.data;
 
   const verifiedCount = companies.filter((c: Company) => c.is_verified).length;
   const pendingCount = companies.filter((c: Company) => !c.is_verified).length;
@@ -152,12 +165,23 @@ const AdminCompanies: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
-        <h1 className="text-4xl font-bold font-display mb-2">
-          Manage Companies
-        </h1>
-        <p className="text-primary-100 text-lg">
-          Oversee tour companies and their registrations 🏢
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold font-display mb-2">
+              Manage Companies
+            </h1>
+            <p className="text-primary-100 text-lg">
+              Oversee tour companies and their registrations 🏢
+            </p>
+          </div>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-white text-primary-600 hover:bg-gray-50 flex items-center gap-2"
+          >
+            <BuildingOfficeIcon className="h-5 w-5" />
+            Add Company
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -172,7 +196,7 @@ const AdminCompanies: React.FC = () => {
                 Total Companies
               </p>
               <p className="text-3xl font-bold text-gray-900 font-display">
-                {pagination?.total_items || 0}
+                {pagination?.total || 0}
               </p>
             </div>
           </div>
@@ -458,10 +482,10 @@ const AdminCompanies: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
-          totalPages={pagination.total_pages}
+          totalPages={pagination.totalPages}
           onPageChange={setCurrentPage}
         />
       )}
@@ -618,7 +642,245 @@ const AdminCompanies: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Create Company Modal */}
+      <CreateCompanyModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={(companyData) => createCompanyMutation.mutate(companyData)}
+        isLoading={createCompanyMutation.isPending}
+      />
     </div>
+  );
+};
+
+// Create Company Modal Component
+interface CreateCompanyModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (companyData: any) => void;
+  isLoading: boolean;
+}
+
+const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [formData, setFormData] = useState({
+    // User data
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    // Company data
+    company_name: "",
+    business_license: "",
+    address: "",
+    description: "",
+    website: "",
+    is_verified: false,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  const handleClose = () => {
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+      company_name: "",
+      business_license: "",
+      address: "",
+      description: "",
+      website: "",
+      is_verified: false,
+    });
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Create New Company">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 max-h-96 overflow-y-auto"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Owner Name
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, password: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              minLength={6}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Company Name
+          </label>
+          <input
+            type="text"
+            value={formData.company_name}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, company_name: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business License
+            </label>
+            <input
+              type="text"
+              value={formData.business_license}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  business_license: e.target.value,
+                }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Website
+            </label>
+            <input
+              type="url"
+              value={formData.website}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, website: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="https://example.com"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Address
+          </label>
+          <textarea
+            value={formData.address}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, address: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            rows={2}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={formData.description}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, description: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            rows={3}
+            placeholder="Brief description of the company..."
+          />
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={formData.is_verified}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  is_verified: e.target.checked,
+                }))
+              }
+              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Verify company immediately
+            </span>
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Creating..." : "Create Company"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 

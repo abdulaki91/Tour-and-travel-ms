@@ -353,17 +353,18 @@ const PackagesPage: React.FC = () => {
                       {pkg.description}
                     </p>
 
-                    <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
+                    <div className="flex flex-wrap items-center justify-between text-sm text-slate-500 mb-4 gap-y-2">
                       <div className="flex items-center">
                         <CalendarIcon className="h-4 w-4 mr-1" />
                         <span>{pkg.duration_days} days</span>
                       </div>
+                      <div className="flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium border border-blue-100">
+                        <CalendarIcon className="h-3 w-3 mr-1" />
+                        {new Date(pkg.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - {new Date(pkg.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
                       <div className="flex items-center">
                         <UserGroupIcon className="h-4 w-4 mr-1" />
                         <span>Max {pkg.max_people}</span>
-                      </div>
-                      <div className="badge-primary">
-                        {pkg.review_count} reviews
                       </div>
                     </div>
 

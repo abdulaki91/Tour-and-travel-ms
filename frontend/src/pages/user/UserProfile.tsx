@@ -444,39 +444,6 @@ const UserProfile: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Button
-          variant="outline"
-          className="p-6 h-auto flex flex-col items-center space-y-2"
-          onClick={() => setShowPasswordModal(true)}
-        >
-          <KeyIcon className="h-8 w-8 text-gray-600" />
-          <span className="font-medium">Change Password</span>
-          <span className="text-sm text-gray-500">Update your password</span>
-        </Button>
-
-        <Button
-          variant="outline"
-          className="p-6 h-auto flex flex-col items-center space-y-2"
-          onClick={() => setShowNotificationModal(true)}
-        >
-          <BellIcon className="h-8 w-8 text-gray-600" />
-          <span className="font-medium">Notifications</span>
-          <span className="text-sm text-gray-500">Manage preferences</span>
-        </Button>
-
-        <Button
-          variant="outline"
-          className="p-6 h-auto flex flex-col items-center space-y-2 text-red-600 border-red-200 hover:bg-red-50"
-          onClick={() => setShowDeleteModal(true)}
-        >
-          <TrashIcon className="h-8 w-8" />
-          <span className="font-medium">Delete Account</span>
-          <span className="text-sm text-red-500">Permanently delete</span>
-        </Button>
-      </div>
-
       {/* Change Password Modal */}
       <Modal
         isOpen={showPasswordModal}

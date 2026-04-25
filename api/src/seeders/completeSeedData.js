@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import pool from "../config/database.js";
 import { eastHararghePackages } from "./eastHararghePackages.js";
+import { futurePackages } from "./futurePackagesSeeder.js";
 
 // Helper function to generate booking reference
 const generateBookingReference = () => {
@@ -290,9 +291,9 @@ const seedCompanies = async (connection) => {
 const seedPackages = async (connection) => {
   console.log("📦 Seeding packages...");
 
-  const packages = eastHararghePackages;
-  // Bali Adventures Co. packages
-  for (const pkg of packages) {
+  const allPackages = [...eastHararghePackages, ...futurePackages];
+
+  for (const pkg of allPackages) {
     await connection.execute(
       `INSERT INTO packages (company_id, title, description, location, duration_days, price, max_people, available_slots, start_date, end_date, includes, excludes, itinerary, images, is_active) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -316,7 +317,7 @@ const seedPackages = async (connection) => {
     );
   }
 
-  console.log(`✅ Seeded ${packages.length} packages`);
+  console.log(`✅ Seeded ${allPackages.length} packages`);
 };
 // Seed Bookings
 const seedBookings = async (connection) => {

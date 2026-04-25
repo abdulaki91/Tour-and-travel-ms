@@ -189,42 +189,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
-        <h3 className="text-xl font-bold text-gray-900 mb-6 font-display">
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button
-            variant="outline"
-            fullWidth
-            onClick={() => (window.location.href = "/admin/users")}
-            className="group"
-          >
-            <UsersIcon className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
-            Manage Users
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            onClick={() => (window.location.href = "/admin/companies")}
-            className="group"
-          >
-            <BuildingOfficeIcon className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
-            Manage Companies
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            onClick={() => window.open("/api/admin/reports/export", "_blank")}
-            className="group"
-          >
-            <ChartBarIcon className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
-            Export Reports
-          </Button>
-        </div>
-      </div>
     </div>
   );
 };

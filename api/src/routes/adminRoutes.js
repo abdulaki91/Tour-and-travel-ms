@@ -1,7 +1,11 @@
 import express from "express";
 import { AdminController } from "../controllers/adminController.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
-import { validate, validateParams } from "../middlewares/validation.js";
+import {
+  validate,
+  validateParams,
+  validateQuery,
+} from "../middlewares/validation.js";
 import Joi from "joi";
 
 const router = express.Router();
@@ -32,6 +36,63 @@ const reportTypeValidation = Joi.object({
     .required(),
 });
 
+const notificationIdValidation = Joi.object({
+  notificationId: Joi.number().integer().positive().required(),
+});
+
+const notificationQueryValidation = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(50).default(10),
+  search: Joi.string().allow("").optional(),
+  type: Joi.string().allow("").optional(),
+  is_read: Joi.string().allow("").optional(),
+  user_id: Joi.number().integer().positive().optional(),
+});
+
+const bulkNotificationValidation = Joi.object({
+  title: Joi.string().required().max(255),
+  message: Joi.string().required().max(1000),
+  type: Joi.string().valid("info", "success", "warning", "error").required(),
+  user_ids: Joi.array().items(Joi.number().integer().positive()).optional(),
+  send_to_all: Joi.boolean().optional(),
+});
+
+const settingsValidation = Joi.object({
+  site_name: Joi.string().max(255).optional(),
+  site_description: Joi.string().max(1000).optional(),
+  contact_email: Joi.string().email().optional(),
+  contact_phone: Joi.string().max(20).optional(),
+  maintenance_mode: Joi.boolean().optional(),
+  registration_enabled: Joi.boolean().optional(),
+  email_notifications: Joi.boolean().optional(),
+  sms_notifications: Joi.boolean().optional(),
+  max_upload_size: Joi.number().integer().min(1).max(100).optional(),
+  allowed_file_types: Joi.array().items(Joi.string()).optional(),
+});
+
+const createUserValidation = Joi.object({
+  name: Joi.string().required().max(255),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+  phone: Joi.string().max(20).optional(),
+  role: Joi.string().valid("USER", "COMPANY", "ADMIN").optional(),
+});
+
+const createCompanyValidation = Joi.object({
+  // User data
+  name: Joi.string().required().max(255),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+  phone: Joi.string().max(20).optional(),
+  // Company data
+  company_name: Joi.string().required().max(255),
+  business_license: Joi.string().max(255).optional(),
+  address: Joi.string().max(500).optional(),
+  description: Joi.string().max(1000).optional(),
+  website: Joi.string().uri().optional(),
+  is_verified: Joi.boolean().optional(),
+});
+
 // All admin routes require ADMIN role
 router.use(authenticate);
 router.use(authorize("ADMIN"));
@@ -43,6 +104,11 @@ router.get("/health", AdminController.getSystemHealth);
 
 // User management
 router.get("/users", AdminController.getAllUsers);
+router.post(
+  "/users",
+  validate(createUserValidation),
+  AdminController.createUser,
+);
 router.patch(
   "/users/:userId/status",
   validateParams(userIdValidation),
@@ -57,6 +123,11 @@ router.delete(
 
 // Company management
 router.get("/companies", AdminController.getAllCompanies);
+router.post(
+  "/companies",
+  validate(createCompanyValidation),
+  AdminController.createCompany,
+);
 router.patch(
   "/companies/:companyId/status",
   validateParams(companyIdValidation),
@@ -94,5 +165,33 @@ router.get(
   validateParams(reportTypeValidation),
   AdminController.exportReport,
 );
+
+// Notifications management
+router.get(
+  "/notifications",
+  validateQuery(notificationQueryValidation),
+  AdminController.getAllNotifications,
+);
+router.post(
+  "/notifications/bulk",
+  validate(bulkNotificationValidation),
+  AdminController.sendBulkNotification,
+);
+router.delete(
+  "/notifications/:notificationId",
+  validateParams(notificationIdValidation),
+  AdminController.deleteNotification,
+);
+
+// Settings management
+router.get("/settings", AdminController.getSettings);
+router.put(
+  "/settings",
+  validate(settingsValidation),
+  AdminController.updateSettings,
+);
+
+// System logs
+router.get("/logs", AdminController.getSystemLogs);
 
 export default router;

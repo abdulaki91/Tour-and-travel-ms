@@ -97,7 +97,7 @@ export const packageQueryValidation = Joi.object({
   max_price: Joi.number().positive().optional(),
   duration: Joi.number().integer().min(1).optional(),
   sort_by: Joi.string()
-    .valid("price", "duration_days", "created_at", "title")
+    .valid("price", "duration", "duration_days", "created_at", "title", "rating")
     .default("created_at"),
   sort_order: Joi.string().valid("asc", "desc").default("desc"),
   search: Joi.string().optional(),

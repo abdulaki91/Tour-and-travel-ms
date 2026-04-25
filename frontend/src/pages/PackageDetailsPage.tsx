@@ -83,8 +83,11 @@ const PackageDetailsPage: React.FC = () => {
 
   const pkg = packageData.data;
   const reviews = reviewsData?.data.items || [];
+  
+  const isExpired = new Date(pkg.end_date) < new Date();
 
   const handleBookNow = () => {
+    if (isExpired) return;
     if (!isAuthenticated) {
       navigate("/login");
       return;
@@ -474,17 +477,31 @@ const PackageDetailsPage: React.FC = () => {
                   <div className="text-slate-500">per person</div>
                 </div>
 
+                {isExpired && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-center text-red-800 font-semibold mb-1">
+                      <XMarkIcon className="h-5 w-5 mr-2" />
+                      Tour Expired
+                    </div>
+                    <p className="text-sm text-red-600">
+                      This tour's availability has ended. Please check our other upcoming tours.
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   fullWidth
                   size="lg"
                   onClick={handleBookNow}
-                  disabled={pkg.available_slots === 0}
-                  variant={pkg.available_slots === 0 ? "outline" : "primary"}
+                  disabled={pkg.available_slots === 0 || isExpired}
+                  variant={pkg.available_slots === 0 || isExpired ? "outline" : "primary"}
                   className="mb-6"
                 >
-                  {pkg.available_slots === 0
-                    ? "Fully Booked"
-                    : "Book This Experience"}
+                  {isExpired 
+                    ? "Tour Expired" 
+                    : pkg.available_slots === 0
+                      ? "Fully Booked"
+                      : "Book This Experience"}
                 </Button>
 
                 <div className="text-center text-sm text-slate-500 mb-6 flex items-center justify-center">

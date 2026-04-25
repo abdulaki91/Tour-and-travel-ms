@@ -227,4 +227,33 @@ export const adminService = {
     const response = await api.get(`/admin/logs?${params.toString()}`);
     return response.data;
   },
+
+  // User creation
+  async createUser(userData: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    role?: string;
+  }): Promise<ApiResponse<User>> {
+    const response = await api.post("/admin/users", userData);
+    return response.data;
+  },
+
+  // Company creation
+  async createCompany(companyData: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    company_name: string;
+    business_license?: string;
+    address?: string;
+    description?: string;
+    website?: string;
+    is_verified?: boolean;
+  }): Promise<ApiResponse<Company>> {
+    const response = await api.post("/admin/companies", companyData);
+    return response.data;
+  },
 };

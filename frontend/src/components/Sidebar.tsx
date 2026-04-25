@@ -13,6 +13,7 @@ import {
   Settings,
   CreditCard,
   Star,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./notifications/NotificationBell";
@@ -44,6 +45,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             path: "/admin/companies",
             color: "purple",
           },
+          {
+            icon: Bell,
+            label: "Notifications",
+            path: "/admin/notifications",
+            color: "orange",
+          },
+          {
+            icon: Settings,
+            label: "Settings",
+            path: "/admin/settings",
+            color: "gray",
+          },
         ];
       case "COMPANY":
         return [
@@ -70,6 +83,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             label: "Reviews",
             path: "/company/reviews",
             color: "yellow",
+          },
+          {
+            icon: Bell,
+            label: "Notifications",
+            path: "/company/notifications",
+            color: "purple",
+          },
+          {
+            icon: Settings,
+            label: "Settings",
+            path: "/company/settings",
+            color: "gray",
           },
         ];
       case "USER":
@@ -117,6 +142,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       yellow: isActive
         ? "bg-yellow-50 text-yellow-700 border-yellow-500"
         : "text-slate-600 hover:bg-yellow-50 hover:text-yellow-700",
+      gray: isActive
+        ? "bg-gray-50 text-gray-700 border-gray-500"
+        : "text-slate-600 hover:bg-gray-50 hover:text-gray-700",
     };
     return colors[color as keyof typeof colors] || colors.blue;
   };
@@ -219,46 +247,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   </li>
                 );
               })}
-            </ul>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="py-4 border-t border-slate-200/50">
-            <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-              Quick Actions
-            </p>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  to="/packages"
-                  onClick={onClose}
-                  className="flex items-center px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group"
-                >
-                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <span className="flex-1">Browse Tours</span>
-                </Link>
-              </li>
-
-              <li>
-                <div className="flex items-center px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group">
-                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
-                    <Settings className="w-5 h-5" />
-                  </div>
-                  <span className="flex-1">Notifications</span>
-                  <NotificationBell />
-                </div>
-              </li>
-
-              <li>
-                <button className="flex items-center w-full px-3 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 group">
-                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mr-3 group-hover:bg-slate-200 transition-all duration-200">
-                    <Settings className="w-5 h-5" />
-                  </div>
-                  <span className="flex-1">Settings</span>
-                </button>
-              </li>
             </ul>
           </div>
 

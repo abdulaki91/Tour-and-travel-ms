@@ -4,7 +4,7 @@ import pool from "../config/database.js";
 export class PackageController {
   static async createPackage(req, res) {
     try {
-      // Get company ID for the authenticated user
+      // Get company for the authenticated user
       const [companies] = await pool.execute(
         "SELECT id FROM companies WHERE user_id = ?",
         [req.user.id],
@@ -96,7 +96,7 @@ export class PackageController {
     try {
       const { id } = req.params;
 
-      // Get company ID for the authenticated user
+      // Get company for the authenticated user
       const [companies] = await pool.execute(
         "SELECT id FROM companies WHERE user_id = ?",
         [req.user.id],
@@ -144,7 +144,7 @@ export class PackageController {
     try {
       const { id } = req.params;
 
-      // Get company ID for the authenticated user
+      // Get company for the authenticated user
       const [companies] = await pool.execute(
         "SELECT id FROM companies WHERE user_id = ?",
         [req.user.id],
@@ -174,7 +174,7 @@ export class PackageController {
 
   static async getMyPackages(req, res) {
     try {
-      // Get company ID for the authenticated user
+      // Get company for the authenticated user
       const [companies] = await pool.execute(
         "SELECT id FROM companies WHERE user_id = ?",
         [req.user.id],
@@ -209,7 +209,7 @@ export class PackageController {
     try {
       const { id } = req.params;
 
-      // Get company ID for the authenticated user
+      // Get company for the authenticated user
       const [companies] = await pool.execute(
         "SELECT id FROM companies WHERE user_id = ?",
         [req.user.id],

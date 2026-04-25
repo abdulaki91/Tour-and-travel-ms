@@ -255,4 +255,149 @@ export class AdminController {
       });
     }
   }
+
+  // Notifications Management
+  static async getAllNotifications(req, res) {
+    try {
+      const result = await AdminService.getAllNotifications(req.query);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  static async sendBulkNotification(req, res) {
+    try {
+      const notificationData = req.body;
+
+      await AdminService.sendBulkNotification(notificationData);
+
+      res.status(200).json({
+        success: true,
+        message: "Bulk notification sent successfully",
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  static async deleteNotification(req, res) {
+    try {
+      const { notificationId } = req.params;
+
+      await AdminService.deleteNotification(notificationId);
+
+      res.status(200).json({
+        success: true,
+        message: "Notification deleted successfully",
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Settings Management
+  static async getSettings(req, res) {
+    try {
+      const settings = await AdminService.getSettings();
+
+      res.status(200).json({
+        success: true,
+        data: settings,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  static async updateSettings(req, res) {
+    try {
+      const settingsData = req.body;
+
+      const updatedSettings = await AdminService.updateSettings(settingsData);
+
+      res.status(200).json({
+        success: true,
+        message: "Settings updated successfully",
+        data: updatedSettings,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  static async getSystemLogs(req, res) {
+    try {
+      const result = await AdminService.getSystemLogs(req.query);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // User Creation
+  static async createUser(req, res) {
+    try {
+      const userData = req.body;
+
+      const newUser = await AdminService.createUser(userData);
+
+      res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        data: newUser,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Company Creation
+  static async createCompany(req, res) {
+    try {
+      const companyData = req.body;
+
+      const newCompany = await AdminService.createCompany(companyData);
+
+      res.status(201).json({
+        success: true,
+        message: "Company created successfully",
+        data: newCompany,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }

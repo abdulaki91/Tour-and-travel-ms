@@ -1,6 +1,5 @@
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useSocket } from "../../context/SocketContext";
 import { useUserDashboard } from "../../hooks/useUserDashboard";
 import DashboardContainer from "../../components/layout/DashboardContainer";
 import PageLoader from "../../components/common/PageLoader";
@@ -8,13 +7,11 @@ import PageLoader from "../../components/common/PageLoader";
 // Import modular components
 import WelcomeHeader from "../../components/user/WelcomeHeader";
 import DashboardStats from "../../components/user/DashboardStats";
-import QuickActions from "../../components/user/QuickActions";
 import RecentBookings from "../../components/user/RecentBookings";
 import TravelTips from "../../components/user/TravelTips";
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { unreadCount } = useSocket();
 
   const {
     recentBookings,
@@ -58,9 +55,6 @@ const UserDashboard: React.FC = () => {
 
         {/* Stats Grid */}
         <DashboardStats stats={stats} isLoading={isStatsLoading} />
-
-        {/* Quick Actions */}
-        <QuickActions unreadCount={unreadCount} />
 
         {/* Recent Bookings */}
         <RecentBookings

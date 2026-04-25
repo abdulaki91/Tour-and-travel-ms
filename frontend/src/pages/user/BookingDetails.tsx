@@ -104,36 +104,6 @@ const BookingDetails: React.FC = () => {
           </ul>
         </div>
       </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 font-display">
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button
-            variant="outline"
-            fullWidth
-            onClick={() => (window.location.href = "/user/bookings")}
-          >
-            View All Bookings
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            onClick={() => alert("Contact support feature coming soon!")}
-          >
-            Contact Support
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            onClick={() => alert("Download receipt feature coming soon!")}
-          >
-            Download Receipt
-          </Button>
-        </div>
-      </div>
     </div>
   );
 };

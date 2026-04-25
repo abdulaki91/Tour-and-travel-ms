@@ -26,11 +26,16 @@ import CreatePackage from "../pages/company/CreatePackage";
 import EditPackage from "../pages/company/EditPackage";
 import CompanyBookings from "../pages/company/CompanyBookings";
 import CompanyRegister from "../pages/company/CompanyRegister";
+import CompanyReviews from "../pages/company/CompanyReviews";
+import CompanyNotifications from "../pages/company/CompanyNotifications";
+import CompanySettings from "../pages/company/CompanySettings";
 
 // Admin Pages
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminUsers from "../pages/admin/AdminUsers";
 import AdminCompanies from "../pages/admin/AdminCompanies";
+import AdminNotifications from "../pages/admin/AdminNotifications";
+import AdminSettings from "../pages/admin/AdminSettings";
 
 // Other Pages
 import UnauthorizedPage from "../pages/UnauthorizedPage";
@@ -102,6 +107,9 @@ const AppRoutes: React.FC = () => {
         <Route path="packages/create" element={<CreatePackage />} />
         <Route path="packages/:id/edit" element={<EditPackage />} />
         <Route path="bookings" element={<CompanyBookings />} />
+        <Route path="reviews" element={<CompanyReviews />} />
+        <Route path="notifications" element={<CompanyNotifications />} />
+        <Route path="settings" element={<CompanySettings />} />
         <Route path="register" element={<CompanyRegister />} />
       </Route>
 
@@ -117,6 +125,8 @@ const AppRoutes: React.FC = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="companies" element={<AdminCompanies />} />
+        <Route path="notifications" element={<AdminNotifications />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
 
       {/* Error Pages */}

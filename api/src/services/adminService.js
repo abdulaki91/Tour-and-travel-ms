@@ -257,8 +257,8 @@ export class AdminService {
 
     const [companies] = await pool.execute(
       `SELECT 
-        c.*, u.name as owner_name, u.email, u.phone, u.is_active,
-        COUNT(p.id) as total_packages,
+        c.*, u.name as name, u.email as user_email, u.phone, u.is_active,
+        COUNT(p.id) as package_count,
         COUNT(CASE WHEN p.is_active = true THEN 1 END) as active_packages
       FROM companies c
       JOIN users u ON c.user_id = u.id
@@ -635,5 +635,358 @@ export class AdminService {
         total_revenue: parseFloat(item.total_revenue || 0),
       })),
     };
+  }
+
+  // Notifications Management
+  static async getAllNotifications(filters = {}) {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      type = "",
+      is_read = "",
+      user_id = "",
+    } = filters;
+    const offset = (page - 1) * limit;
+
+    let whereClause = "WHERE 1=1";
+    const params = [];
+
+    if (search) {
+      whereClause += " AND (n.title LIKE ? OR n.message LIKE ?)";
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (type) {
+      whereClause += " AND n.type = ?";
+      params.push(type);
+    }
+
+    if (is_read !== "") {
+      whereClause += " AND n.is_read = ?";
+      params.push(is_read === "true");
+    }
+
+    if (user_id) {
+      whereClause += " AND n.user_id = ?";
+      params.push(user_id);
+    }
+
+    const [notifications] = await pool.execute(
+      `SELECT 
+        n.*,
+        u.name as first_name,
+        '' as last_name,
+        u.email
+      FROM notifications n
+      LEFT JOIN users u ON n.user_id = u.id
+      ${whereClause}
+      ORDER BY n.created_at DESC
+      LIMIT ? OFFSET ?`,
+      [...params, limit, offset],
+    );
+
+    const [countResult] = await pool.execute(
+      `SELECT COUNT(*) as total
+      FROM notifications n
+      LEFT JOIN users u ON n.user_id = u.id
+      ${whereClause}`,
+      params,
+    );
+
+    return {
+      items: notifications,
+      total: countResult[0].total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(countResult[0].total / limit),
+    };
+  }
+
+  static async sendBulkNotification(notificationData) {
+    const { title, message, type, user_ids, send_to_all } = notificationData;
+
+    let targetUserIds = [];
+
+    if (send_to_all) {
+      // Get all active user IDs
+      const [users] = await pool.execute(
+        "SELECT id FROM users WHERE is_active = true",
+      );
+      targetUserIds = users.map((user) => user.id);
+    } else if (user_ids && user_ids.length > 0) {
+      targetUserIds = user_ids;
+    } else {
+      throw new Error("No target users specified");
+    }
+
+    // Insert notifications for all target users
+    const values = targetUserIds.map((userId) => [
+      userId,
+      title,
+      message,
+      type,
+    ]);
+
+    if (values.length > 0) {
+      const placeholders = values.map(() => "(?, ?, ?, ?)").join(", ");
+      const flatValues = values.flat();
+
+      await pool.execute(
+        `INSERT INTO notifications (user_id, title, message, type) VALUES ${placeholders}`,
+        flatValues,
+      );
+    }
+
+    return {
+      success: true,
+      message: `Bulk notification sent to ${targetUserIds.length} users`,
+    };
+  }
+
+  static async deleteNotification(notificationId) {
+    const [result] = await pool.execute(
+      "DELETE FROM notifications WHERE id = ?",
+      [notificationId],
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error("Notification not found");
+    }
+
+    return { success: true, message: "Notification deleted successfully" };
+  }
+
+  // Settings Management
+  static async getSettings() {
+    // For now, return default settings. In a real app, these would be stored in a settings table
+    return {
+      site_name: "East Hararghe Tours",
+      site_description:
+        "Discover the beauty of East Hararghe with our curated travel packages",
+      contact_email: "info@easthararghetours.com",
+      contact_phone: "+251-911-123456",
+      maintenance_mode: false,
+      registration_enabled: true,
+      email_notifications: true,
+      sms_notifications: false,
+      max_upload_size: 10, // MB
+      allowed_file_types: ["jpg", "jpeg", "png", "gif", "pdf"],
+    };
+  }
+
+  static async updateSettings(settingsData) {
+    // In a real app, you would update a settings table
+    // For now, we'll just return the updated settings
+    const currentSettings = await this.getSettings();
+    const updatedSettings = { ...currentSettings, ...settingsData };
+
+    // Here you would typically save to database:
+    // await pool.execute('UPDATE settings SET ... WHERE id = 1', [...]);
+
+    return updatedSettings;
+  }
+
+  static async getSystemLogs(filters = {}) {
+    const {
+      page = 1,
+      limit = 50,
+      level = "",
+      start_date = "",
+      end_date = "",
+    } = filters;
+    const offset = (page - 1) * limit;
+
+    // For now, return mock log data. In a real app, you'd have a logs table
+    const mockLogs = [
+      {
+        id: 1,
+        level: "info",
+        message: "User login successful",
+        timestamp: new Date().toISOString(),
+        user_id: 1,
+        ip_address: "192.168.1.1",
+      },
+      {
+        id: 2,
+        level: "warning",
+        message: "Failed login attempt",
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        user_id: null,
+        ip_address: "192.168.1.100",
+      },
+      {
+        id: 3,
+        level: "error",
+        message: "Database connection timeout",
+        timestamp: new Date(Date.now() - 7200000).toISOString(),
+        user_id: null,
+        ip_address: null,
+      },
+    ];
+
+    return {
+      items: mockLogs,
+      total: mockLogs.length,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(mockLogs.length / limit),
+    };
+  }
+
+  // User Creation
+  static async createUser(userData) {
+    const { name, email, password, phone, role = "USER" } = userData;
+
+    // Check if user already exists
+    const [existingUsers] = await pool.execute(
+      "SELECT id FROM users WHERE email = ?",
+      [email],
+    );
+
+    if (existingUsers.length > 0) {
+      throw new Error("User with this email already exists");
+    }
+
+    // Get role ID
+    const [roles] = await pool.execute("SELECT id FROM roles WHERE name = ?", [
+      role,
+    ]);
+
+    if (roles.length === 0) {
+      throw new Error("Invalid role specified");
+    }
+
+    const roleId = roles[0].id;
+
+    // Hash password
+    const bcrypt = await import("bcrypt");
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const [result] = await pool.execute(
+      `INSERT INTO users (name, email, password, phone, role_id, is_active, email_verified) 
+       VALUES (?, ?, ?, ?, ?, true, true)`,
+      [name, email, hashedPassword, phone, roleId],
+    );
+
+    // Get created user
+    const [newUser] = await pool.execute(
+      `SELECT u.*, r.name as role_name 
+       FROM users u 
+       JOIN roles r ON u.role_id = r.id 
+       WHERE u.id = ?`,
+      [result.insertId],
+    );
+
+    const user = newUser[0];
+    delete user.password; // Remove password from response
+
+    return user;
+  }
+
+  // Company Creation
+  static async createCompany(companyData) {
+    const {
+      // User data
+      name,
+      email,
+      password,
+      phone,
+      // Company data
+      company_name,
+      business_license,
+      address,
+      description,
+      website,
+      is_verified = false,
+    } = companyData;
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check if user already exists
+      const [existingUsers] = await connection.execute(
+        "SELECT id FROM users WHERE email = ?",
+        [email],
+      );
+
+      if (existingUsers.length > 0) {
+        throw new Error("User with this email already exists");
+      }
+
+      // Check if company name already exists
+      const [existingCompanies] = await connection.execute(
+        "SELECT id FROM companies WHERE company_name = ?",
+        [company_name],
+      );
+
+      if (existingCompanies.length > 0) {
+        throw new Error("Company with this name already exists");
+      }
+
+      // Get COMPANY role ID
+      const [roles] = await connection.execute(
+        "SELECT id FROM roles WHERE name = 'COMPANY'",
+      );
+
+      if (roles.length === 0) {
+        throw new Error("Company role not found");
+      }
+
+      const roleId = roles[0].id;
+
+      // Hash password
+      const bcrypt = await import("bcrypt");
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const [userResult] = await connection.execute(
+        `INSERT INTO users (name, email, password, phone, role_id, is_active, email_verified) 
+         VALUES (?, ?, ?, ?, ?, true, true)`,
+        [name, email, hashedPassword, phone, roleId],
+      );
+
+      const userId = userResult.insertId;
+
+      // Create company
+      const [companyResult] = await connection.execute(
+        `INSERT INTO companies (user_id, company_name, business_license, address, description, website, is_verified) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          company_name,
+          business_license,
+          address,
+          description,
+          website,
+          is_verified,
+        ],
+      );
+
+      // Get created company with user data
+      const [newCompany] = await connection.execute(
+        `SELECT 
+          c.*,
+          u.name as owner_name,
+          u.email,
+          u.phone,
+          u.is_active
+        FROM companies c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.id = ?`,
+        [companyResult.insertId],
+      );
+
+      await connection.commit();
+      return newCompany[0];
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 }

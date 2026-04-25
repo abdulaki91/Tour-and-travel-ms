@@ -27,16 +27,21 @@ export const reviewService = {
     });
 
     const response = await api.get(
-      `/packages/${packageId}/reviews?${params.toString()}`,
+      `/reviews/package/${packageId}?${params.toString()}`,
     );
     return response.data;
   },
 
   async createReview(
+    packageId: number,
     bookingId: number,
     data: ReviewFormData,
   ): Promise<ApiResponse<Review>> {
-    const response = await api.post(`/bookings/${bookingId}/review`, data);
+    const response = await api.post("/reviews", {
+      ...data,
+      package_id: packageId,
+      booking_id: bookingId,
+    });
     return response.data;
   },
 
@@ -63,7 +68,21 @@ export const reviewService = {
       }
     });
 
-    const response = await api.get(`/user/reviews?${params.toString()}`);
+    const response = await api.get(`/reviews/my?${params.toString()}`);
+    return response.data;
+  },
+
+  async getCompanyReviews(
+    filters: ReviewFilters = {},
+  ): Promise<PaginatedResponse<Review> & { stats: any }> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/reviews/company/my?${params.toString()}`);
     return response.data;
   },
 };

@@ -54,9 +54,22 @@ export const notificationService = {
   },
 
   // Mark notification as read
-  markAsRead: async (notificationId: number): Promise<Notification> => {
-    const response = await api.patch(`/notifications/${notificationId}/read`);
-    return response.data.data;
+  markAsRead: async (
+    notificationIds: number | number[],
+  ): Promise<Notification | void> => {
+    if (Array.isArray(notificationIds)) {
+      // Bulk mark as read
+      const response = await api.patch("/notifications/bulk-read", {
+        notification_ids: notificationIds,
+      });
+      return response.data.data;
+    } else {
+      // Single mark as read
+      const response = await api.patch(
+        `/notifications/${notificationIds}/read`,
+      );
+      return response.data.data;
+    }
   },
 
   // Mark all notifications as read

@@ -92,4 +92,25 @@ export class ReviewController {
       });
     }
   }
+
+  static async getCompanyReviews(req, res) {
+    try {
+      // Use user_id as company_id (consistent with package controller)
+      const companyId = req.user.id;
+      const result = await ReviewService.getCompanyReviews(
+        companyId,
+        req.query,
+      );
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }

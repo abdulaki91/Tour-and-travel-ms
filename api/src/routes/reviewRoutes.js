@@ -65,4 +65,13 @@ router.get(
   ReviewController.getPackageReviews,
 );
 
+// Company routes
+router.get(
+  "/company/my",
+  authenticate,
+  authorize("COMPANY"),
+  validateQuery(reviewQueryValidation),
+  ReviewController.getCompanyReviews,
+);
+
 export default router;

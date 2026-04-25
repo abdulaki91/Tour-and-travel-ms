@@ -17,7 +17,19 @@ const LoginPage: React.FC = () => {
     try {
       await login(email, password);
       toast.success("Login successful!");
-      navigate("/user");
+
+      // Get the updated user from auth context
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const role = user.role;
+
+      // Redirect based on role
+      if (role === "ADMIN") {
+        navigate("/admin");
+      } else if (role === "COMPANY") {
+        navigate("/company");
+      } else {
+        navigate("/user");
+      }
     } catch (error: any) {
       toast.error(error.message || "Login failed");
     } finally {
@@ -58,6 +70,26 @@ const LoginPage: React.FC = () => {
         {/* Form Card */}
         <div className="card-gradient shadow-2xl">
           <div className="card-content">
+            {/* Test Credentials */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2">
+                Test Credentials:
+              </h3>
+              <div className="text-xs text-blue-700 space-y-1">
+                <div>
+                  <strong>Admin:</strong> admin@easthararghetours.com /
+                  password123
+                </div>
+                <div>
+                  <strong>Company:</strong> harar@culturaltours.com /
+                  password123
+                </div>
+                <div>
+                  <strong>User:</strong> mohammed.ali@email.com / password123
+                </div>
+              </div>
+            </div>
+
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-5">
                 <div className="form-group">

@@ -38,8 +38,9 @@ export class ReviewService {
     const [reviews] = await pool.execute(
       `SELECT 
         r.*,
-        u.first_name,
-        u.last_name,
+        u.name as user_name,
+        u.name as first_name,
+        '' as last_name,
         u.profile_image,
         p.title as package_title
       FROM reviews r
@@ -64,8 +65,9 @@ export class ReviewService {
     const [reviews] = await pool.execute(
       `SELECT 
         r.*,
-        u.first_name,
-        u.last_name,
+        u.name as user_name,
+        u.name as first_name,
+        '' as last_name,
         u.profile_image
       FROM reviews r
       JOIN users u ON r.user_id = u.id
@@ -159,6 +161,97 @@ export class ReviewService {
         total_pages: Math.ceil(total / limit),
         total_items: total,
         items_per_page: limit,
+      },
+    };
+  }
+
+  static async getCompanyReviews(companyId, filters = {}) {
+    const {
+      page = 1,
+      limit = 10,
+      sort_by = "created_at",
+      sort_order = "desc",
+      rating = "",
+    } = filters;
+    const offset = (page - 1) * limit;
+
+    let whereConditions = ["p.company_id = ?"];
+    let queryParams = [companyId];
+
+    if (rating) {
+      whereConditions.push("r.rating = ?");
+      queryParams.push(parseInt(rating));
+    }
+
+    const whereClause = whereConditions.join(" AND ");
+
+    const [reviews] = await pool.execute(
+      `SELECT 
+        r.*,
+        u.name as user_name,
+        u.profile_image,
+        p.title as package_title,
+        p.location as package_location,
+        p.id as package_id
+      FROM reviews r
+      JOIN users u ON r.user_id = u.id
+      JOIN packages p ON r.package_id = p.id
+      WHERE ${whereClause}
+      ORDER BY r.${sort_by} ${sort_order.toUpperCase()}
+      LIMIT ? OFFSET ?`,
+      [...queryParams, limit, offset],
+    );
+
+    // Get total count
+    const [countResult] = await pool.execute(
+      `SELECT COUNT(*) as total
+      FROM reviews r
+      JOIN packages p ON r.package_id = p.id
+      WHERE ${whereClause}`,
+      queryParams,
+    );
+
+    const total = countResult[0].total;
+
+    // Get rating distribution
+    const [ratingStats] = await pool.execute(
+      `SELECT 
+        r.rating,
+        COUNT(*) as count
+      FROM reviews r
+      JOIN packages p ON r.package_id = p.id
+      WHERE p.company_id = ?
+      GROUP BY r.rating
+      ORDER BY r.rating DESC`,
+      [companyId],
+    );
+
+    // Get average rating
+    const [avgRating] = await pool.execute(
+      `SELECT 
+        AVG(r.rating) as average_rating,
+        COUNT(r.id) as total_reviews
+      FROM reviews r
+      JOIN packages p ON r.package_id = p.id
+      WHERE p.company_id = ?`,
+      [companyId],
+    );
+
+    return {
+      reviews,
+      pagination: {
+        current_page: parseInt(page),
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: parseInt(limit),
+      },
+      stats: {
+        average_rating: parseFloat(avgRating[0].average_rating || 0),
+        total_reviews: parseInt(avgRating[0].total_reviews || 0),
+        rating_distribution: ratingStats.map((stat) => ({
+          rating: parseInt(stat.rating),
+          count: parseInt(stat.count),
+        })),
       },
     };
   }

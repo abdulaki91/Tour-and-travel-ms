@@ -170,8 +170,24 @@ export class NotificationService {
   static async notifyNewBooking(companyUserId, bookingData) {
     return await this.createNotification(companyUserId, {
       title: "New Booking Received",
-      message: `You have received a new booking for "${bookingData.package_title}" from ${bookingData.first_name} ${bookingData.last_name}`,
+      message: `You have received a new booking for "${bookingData.package_title}" from ${bookingData.customer_name}`,
       type: "new_booking",
     });
+  }
+
+  static async bulkMarkAsRead(userId, notificationIds) {
+    if (notificationIds.length === 0) {
+      return 0;
+    }
+
+    const placeholders = notificationIds.map(() => "?").join(",");
+    const [result] = await pool.execute(
+      `UPDATE notifications 
+       SET is_read = true, updated_at = CURRENT_TIMESTAMP 
+       WHERE user_id = ? AND id IN (${placeholders}) AND is_read = false`,
+      [userId, ...notificationIds],
+    );
+
+    return result.affectedRows;
   }
 }

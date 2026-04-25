@@ -140,14 +140,14 @@ export class PaymentGatewayService {
 
       // const response = await axios.get(`https://api.chapa.co/v1/transaction/verify/${transactionId}`, { headers });
 
-      // Mock successful response
-      const isSuccess = Math.random() > 0.2; // 80% success rate
+      // Mock successful response (100% success rate for demo)
+      const isSuccess = true;
 
       return {
         success: isSuccess,
-        status: isSuccess ? "completed" : "failed",
+        status: "completed",
         transaction_id: transactionId,
-        amount: 1000, // This would come from the API response
+        amount: null, // processPayment will fall back to stored payment amount
         verified_at: new Date().toISOString(),
       };
     } catch (error) {

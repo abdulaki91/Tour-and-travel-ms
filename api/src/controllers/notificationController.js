@@ -93,4 +93,33 @@ export class NotificationController {
       });
     }
   }
+
+  static async bulkMarkAsRead(req, res) {
+    try {
+      const userId = req.user.id;
+      const { notification_ids } = req.body;
+
+      if (!notification_ids || !Array.isArray(notification_ids)) {
+        return res.status(400).json({
+          success: false,
+          message: "notification_ids array is required",
+        });
+      }
+
+      const updatedCount = await NotificationService.bulkMarkAsRead(
+        userId,
+        notification_ids,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `${updatedCount} notifications marked as read`,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }

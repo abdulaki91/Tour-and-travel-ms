@@ -21,15 +21,6 @@ This directory contains modular components for the user dashboard, promoting reu
   - Loading skeleton
   - Animated hover effects
 
-### QuickActions
-
-- **Purpose**: Provides quick navigation to key user actions
-- **Props**: `unreadCount?: number` - Notification count for badge
-- **Features**:
-  - Navigation links to key pages
-  - Notification badge
-  - Responsive grid
-
 ### RecentBookings
 
 - **Purpose**: Displays user's recent bookings
@@ -62,7 +53,6 @@ import { useUserDashboard } from "../../hooks/useUserDashboard";
 import {
   WelcomeHeader,
   DashboardStats,
-  QuickActions,
   RecentBookings,
   TravelTips,
 } from "../../components/user";
@@ -76,7 +66,6 @@ const UserDashboard: React.FC = () => {
     <div className="space-y-8">
       <WelcomeHeader userName={user?.name} />
       <DashboardStats stats={stats} isLoading={isLoading} />
-      <QuickActions unreadCount={unreadCount} />
       <RecentBookings bookings={recentBookings} isLoading={isLoading} />
       <TravelTips />
     </div>

@@ -1,7 +1,6 @@
 // User Dashboard Components
 export { default as WelcomeHeader } from "./WelcomeHeader";
 export { default as DashboardStats } from "./DashboardStats";
-export { default as QuickActions } from "./QuickActions";
 export { default as RecentBookings } from "./RecentBookings";
 export { default as TravelTips } from "./TravelTips";
 

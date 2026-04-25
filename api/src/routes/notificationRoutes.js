@@ -14,7 +14,7 @@ const notificationQueryValidation = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(50).default(10),
   is_read: Joi.boolean().optional(),
-  type: Joi.string().optional(),
+  type: Joi.string().allow("").optional(),
   sort_by: Joi.string().valid("created_at").default("created_at"),
   sort_order: Joi.string().valid("asc", "desc").default("desc"),
 });
@@ -37,6 +37,8 @@ router.patch(
 );
 
 router.patch("/mark-all-read", NotificationController.markAllAsRead);
+
+router.patch("/bulk-read", NotificationController.bulkMarkAsRead);
 
 router.delete(
   "/:id",

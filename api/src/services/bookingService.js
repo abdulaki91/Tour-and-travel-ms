@@ -20,13 +20,16 @@ export class BookingService {
 
     const packageInfo = packages[0];
 
+    // Use package start_date if booking_date is not provided (Option 2: Fixed Dates)
+    const finalBookingDate = booking_date || packageInfo.start_date;
+
     // Check availability
     if (packageInfo.available_slots < number_of_people) {
       throw new Error("Not enough available slots for this booking");
     }
 
     // Check if booking date is within package date range
-    const bookingDateObj = new Date(booking_date);
+    const bookingDateObj = new Date(finalBookingDate);
     const startDate = new Date(packageInfo.start_date);
     const endDate = new Date(packageInfo.end_date);
 
@@ -55,7 +58,7 @@ export class BookingService {
           booking_reference,
           number_of_people,
           total_amount,
-          booking_date,
+          finalBookingDate,
           special_requests,
         ],
       );
@@ -87,8 +90,7 @@ export class BookingService {
         if (companyUsers.length > 0) {
           await NotificationService.notifyNewBooking(companyUsers[0].id, {
             package_title: packageInfo.title,
-            first_name: newBooking.first_name,
-            last_name: newBooking.last_name,
+            customer_name: newBooking.name,
           });
         }
 
@@ -123,8 +125,7 @@ export class BookingService {
         p.start_date as package_start_date,
         p.end_date as package_end_date,
         c.company_name,
-        u.first_name,
-        u.last_name,
+        u.name,
         u.email as user_email,
         u.phone as user_phone
       FROM bookings b
@@ -226,8 +227,8 @@ export class BookingService {
         b.*,
         p.title as package_title,
         p.location as package_location,
-        u.first_name,
-        u.last_name,
+        u.name as first_name,
+        '' as last_name,
         u.email as user_email,
         u.phone as user_phone
       FROM bookings b

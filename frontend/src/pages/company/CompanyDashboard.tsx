@@ -5,15 +5,14 @@ import {
   CubeIcon,
   CalendarDaysIcon,
   ChartBarIcon,
-  PlusIcon,
-  EyeIcon,
-  DocumentChartBarIcon,
   UsersIcon,
   CurrencyDollarIcon,
   StarIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
   CheckCircleIcon,
+  PlusIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { packageService } from "../../services/packages";
 import { bookingService } from "../../services/bookings";
@@ -78,44 +77,6 @@ const CompanyDashboard: React.FC = () => {
       bgColor: "bg-yellow-50",
       textColor: "text-yellow-600",
       change: "Based on reviews",
-    },
-  ];
-
-  const quickActions = [
-    {
-      title: "Create New Package",
-      description: "Add a new tour package to your offerings",
-      icon: PlusIcon,
-      action: () => (window.location.href = "/company/packages/create"),
-      color: "from-primary-500 to-primary-600",
-      badge: "Popular",
-    },
-    {
-      title: "View All Packages",
-      description: "Manage your existing tour packages",
-      icon: EyeIcon,
-      action: () => (window.location.href = "/company/packages"),
-      color: "from-secondary-500 to-secondary-600",
-      badge: packages.length > 0 ? `${packages.length}` : null,
-    },
-    {
-      title: "View Bookings",
-      description: "Check customer bookings and reservations",
-      icon: CalendarDaysIcon,
-      action: () => (window.location.href = "/company/bookings"),
-      color: "from-success-500 to-success-600",
-      badge:
-        bookings.filter((b) => b.status === "pending").length > 0
-          ? `${bookings.filter((b) => b.status === "pending").length} pending`
-          : null,
-    },
-    {
-      title: "Analytics",
-      description: "View performance metrics and insights",
-      icon: DocumentChartBarIcon,
-      action: () => alert("Analytics feature coming soon!"),
-      color: "from-accent-500 to-accent-600",
-      badge: "New",
     },
   ];
 
@@ -221,49 +182,8 @@ const CompanyDashboard: React.FC = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Quick Actions */}
-        <div className="lg:col-span-2">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-6 font-display">
-              Quick Actions
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {quickActions.map((action, index) => (
-                <div
-                  key={index}
-                  className="relative p-6 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 group cursor-pointer"
-                  onClick={action.action}
-                >
-                  {action.badge && (
-                    <div className="absolute -top-2 -right-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        {action.badge}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-start space-x-4">
-                    <div
-                      className={`flex-shrink-0 p-3 bg-gradient-to-br ${action.color} rounded-xl shadow-lg group-hover:scale-110 transition-transform`}
-                    >
-                      <action.icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-lg font-bold text-gray-900 mb-2 font-display group-hover:text-primary-600 transition-colors">
-                        {action.title}
-                      </h4>
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        {action.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
         {/* Recent Activity */}
-        <div className="space-y-6">
+        <div className="lg:col-span-1 space-y-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-4 font-display">
               Recent Activity

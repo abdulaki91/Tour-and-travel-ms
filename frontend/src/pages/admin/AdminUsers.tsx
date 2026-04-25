@@ -42,6 +42,7 @@ const AdminUsers: React.FC = () => {
   });
   const [showDeleteModal, setShowDeleteModal] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -87,6 +88,18 @@ const AdminUsers: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to delete user");
+    },
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: (userData: any) => adminService.createUser(userData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User created successfully");
+      setShowCreateModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to create user");
     },
   });
 
@@ -147,17 +160,30 @@ const AdminUsers: React.FC = () => {
     );
   }
 
-  const users = usersData?.data?.users || [];
-  const pagination = usersData?.data?.pagination;
+  const users = usersData?.data?.items || [];
+  const pagination = usersData?.data;
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
-        <h1 className="text-4xl font-bold font-display mb-2">Manage Users</h1>
-        <p className="text-primary-100 text-lg">
-          Oversee all system users and their permissions 👥
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold font-display mb-2">
+              Manage Users
+            </h1>
+            <p className="text-primary-100 text-lg">
+              Oversee all system users and their permissions 👥
+            </p>
+          </div>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-white text-primary-600 hover:bg-gray-50 flex items-center gap-2"
+          >
+            <UserPlusIcon className="h-5 w-5" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -172,7 +198,7 @@ const AdminUsers: React.FC = () => {
                 Total Users
               </p>
               <p className="text-3xl font-bold text-gray-900 font-display">
-                {pagination?.total_items || 0}
+                {pagination?.total || 0}
               </p>
             </div>
           </div>
@@ -452,10 +478,10 @@ const AdminUsers: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
-          totalPages={pagination.total_pages}
+          totalPages={pagination.totalPages}
           onPageChange={setCurrentPage}
         />
       )}
@@ -487,7 +513,146 @@ const AdminUsers: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Create User Modal */}
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={(userData) => createUserMutation.mutate(userData)}
+        isLoading={createUserMutation.isPending}
+      />
     </div>
+  );
+};
+
+// Create User Modal Component
+interface CreateUserModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (userData: any) => void;
+  isLoading: boolean;
+}
+
+const CreateUserModal: React.FC<CreateUserModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    role: "USER",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  const handleClose = () => {
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+      role: "USER",
+    });
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Create New User">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name
+          </label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, name: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, email: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Password
+          </label>
+          <input
+            type="password"
+            value={formData.password}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, password: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            minLength={6}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Phone Number (Optional)
+          </label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, phone: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Role
+          </label>
+          <select
+            value={formData.role}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, role: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="USER">User</option>
+            <option value="COMPANY">Company</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Creating..." : "Create User"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
