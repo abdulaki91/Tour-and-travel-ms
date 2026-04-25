@@ -19,7 +19,7 @@ export const createBookingValidation = Joi.object({
     "date.min": "Booking date cannot be in the past",
     "any.required": "Booking date is required",
   }),
-  special_requests: Joi.string().max(1000).optional().messages({
+  special_requests: Joi.string().max(1000).allow("").optional().messages({
     "string.max": "Special requests cannot exceed 1000 characters",
   }),
 });

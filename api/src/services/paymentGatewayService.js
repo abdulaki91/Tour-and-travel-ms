@@ -33,6 +33,12 @@ export class PaymentGatewayService {
         payment_url: `https://mock-telebirr.com/pay?ref=${booking_reference}`,
         transaction_id: `TB_${Date.now()}`,
         status: "pending",
+        instructions: {
+          account_name: "East Hararghe Tour & Travel (Official)",
+          account_number: "+251 91 123 4567",
+          amount: amount,
+          reference: booking_reference,
+        },
       };
     } catch (error) {
       console.error("Telebirr payment initiation failed:", error);
@@ -88,6 +94,7 @@ export class PaymentGatewayService {
 
     return {
       success: true,
+      transaction_id: `BT_${Date.now()}`,
       instructions: {
         bank_name: "Commercial Bank of Ethiopia",
         account_number: "1000123456789",

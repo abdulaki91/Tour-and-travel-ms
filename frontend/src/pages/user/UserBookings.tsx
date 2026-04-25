@@ -23,13 +23,13 @@ const UserBookings: React.FC = () => {
 
   const getStatusVariant = (status: BookingStatus) => {
     switch (status) {
-      case "CONFIRMED":
+      case "confirmed":
         return "success";
-      case "PENDING":
+      case "pending":
         return "warning";
-      case "CANCELLED":
+      case "cancelled":
         return "danger";
-      case "COMPLETED":
+      case "completed":
         return "info";
       default:
         return "default";

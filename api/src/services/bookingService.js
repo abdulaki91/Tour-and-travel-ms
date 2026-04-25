@@ -127,11 +127,17 @@ export class BookingService {
         c.company_name,
         u.name,
         u.email as user_email,
-        u.phone as user_phone
+        u.phone as user_phone,
+        pay.id as payment_id,
+        pay.status as payment_status,
+        pay.payment_method,
+        pay.amount as payment_amount,
+        pay.transaction_reference
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN companies c ON p.company_id = c.id
       JOIN users u ON b.user_id = u.id
+      LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed')
       WHERE b.id = ?`,
       [id],
     );
@@ -161,17 +167,31 @@ export class BookingService {
 
     const [bookings] = await pool.execute(
       `SELECT 
-        b.*,
+        b.id,
+        b.user_id,
+        b.package_id,
+        b.booking_reference,
+        b.booking_date,
+        b.number_of_people,
+        b.total_amount,
+        b.status,
+        b.special_requests,
+        b.created_at,
+        b.updated_at,
         p.title as package_title,
         p.location as package_location,
         p.duration_days,
         p.images as package_images,
-        c.company_name
+        c.company_name,
+        pay.id as payment_id,
+        pay.status as payment_status,
+        pay.payment_method
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN companies c ON p.company_id = c.id
+      LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed')
       WHERE ${whereClause}
-      ORDER BY b.${sort_by} ${sort_order.toUpperCase()}
+      ORDER BY b.created_at DESC, b.id DESC
       LIMIT ? OFFSET ?`,
       [...queryParams, limit, offset],
     );
@@ -192,12 +212,12 @@ export class BookingService {
     }));
 
     return {
-      bookings: formattedBookings,
+      items: formattedBookings,
       pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
+        page: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
       },
     };
   }
@@ -252,12 +272,12 @@ export class BookingService {
     const total = countResult[0].total;
 
     return {
-      bookings,
+      items: bookings,
       pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
+        page: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
       },
     };
   }

@@ -71,16 +71,14 @@ export interface Booking extends BaseEntity {
   status: BookingStatus;
   special_requests?: string;
   payment_status?: PaymentStatus;
+  // Flat fields from backend JOIN
   package_title: string;
-  location: string;
-  package?: {
-    id: number;
-    title: string;
-    location: string;
-    price: number;
-    duration_days: number;
-    company_name: string;
-  };
+  package_location: string;
+  duration_days: number;
+  company_name: string;
+  // Payment information for verification
+  payment_id?: number;
+  payment_method?: string;
   user?: {
     name: string;
     email: string;

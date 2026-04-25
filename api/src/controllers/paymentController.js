@@ -1,5 +1,6 @@
 import { PaymentService } from "../services/paymentService.js";
 import { BookingService } from "../services/bookingService.js";
+import qrcode from 'qrcode'; // Import qrcode library
 
 export class PaymentController {
   static async createPayment(req, res) {
@@ -241,6 +242,70 @@ export class PaymentController {
       res.status(400).json({
         success: false,
         message: error.message,
+      });
+    }
+  }
+
+  // New endpoint to generate QR code for payment verification
+  static async generateVerificationQrCode(req, res) {
+    try {
+      const { paymentId } = req.params;
+      const userId = req.user.id;
+
+      // Fetch payment details
+      const payment = await PaymentService.getPaymentById(paymentId);
+      if (!payment) {
+        return res.status(404).json({
+          success: false,
+          message: "Payment not found",
+        });
+      }
+
+      // Verify user owns this payment
+      if (payment.user_id !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized to access this payment's verification QR code",
+        });
+      }
+      
+      // Verify payment status (ensure it's completed)
+      if (payment.status !== "completed") {
+        return res.status(400).json({
+          success: false,
+          message: "Payment is not completed and cannot generate a verification QR code.",
+        });
+      }
+
+      // Call verifyPayment to get the JWT (this will also re-verify if payment is pending, but we've already checked for completed)
+      // Note: We are primarily interested in the JWT generated if the payment is completed.
+      // If verifyPayment was called and it resulted in a new completion, it will return the JWT.
+      // If it was already completed, it will return the existing payment details and generate a new JWT.
+      const verifiedPayment = await PaymentService.verifyPayment(paymentId);
+
+      if (!verifiedPayment || !verifiedPayment.jwt) {
+        return res.status(500).json({
+          success: false,
+          message: "Could not generate verification token.",
+        });
+      }
+      
+      // Generate QR code from the JWT
+      const qrCodeBuffer = await qrcode.toBuffer(verifiedPayment.jwt, {
+        errorCorrectionLevel: 'H', // High error correction for robustness
+        type: 'png',
+        margin: 2,
+      });
+
+      // Set headers and send QR code image
+      res.setHeader('Content-Type', 'image/png');
+      res.send(qrCodeBuffer);
+
+    } catch (error) {
+      console.error("Error generating verification QR code:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "An unexpected error occurred while generating the QR code.",
       });
     }
   }

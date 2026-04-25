@@ -1,8 +1,10 @@
 import pool from "../config/database.js";
-import { generateTransactionReference } from "../utils/jwt.js";
+import { generateTransactionReference, generateTokens, verifyAccessToken } from "../utils/jwt.js";
 import { NotificationService } from "./notificationService.js";
 import { PaymentGatewayService } from "./paymentGatewayService.js";
 import { emitPaymentUpdate } from "../socket/index.js";
+import qrcode from 'qrcode'; // Import qrcode library
+import jwt from 'jsonwebtoken'; // Import jsonwebtoken
 
 export class PaymentService {
   static async createPayment(bookingId, paymentData) {
@@ -66,6 +68,15 @@ export class PaymentService {
             await PaymentGatewayService.initiateTelebirrPayment(
               gatewayPaymentData,
             );
+          // Add merchant info for display
+          if (!gatewayResponse.instructions) {
+            gatewayResponse.instructions = {
+              account_name: "East Hararghe Tour & Travel",
+              account_number: "+251 91 123 4567",
+              amount: total_amount,
+              reference: booking.booking_reference,
+            };
+          }
           break;
         case "chapa":
           gatewayResponse =
@@ -89,7 +100,7 @@ export class PaymentService {
          SET gateway_transaction_id = ?, gateway_response = ?, payment_url = ?
          WHERE id = ?`,
         [
-          gatewayResponse.transaction_id,
+          gatewayResponse.transaction_id || null,
           JSON.stringify(gatewayResponse),
           gatewayResponse.payment_url || null,
           paymentId,
@@ -261,40 +272,64 @@ export class PaymentService {
       throw new Error("Payment not found");
     }
 
-    if (payment.status !== "pending") {
-      return payment; // Already processed
-    }
+    let is_newly_verified = false; // Flag to indicate if verification was just performed
 
-    let verificationResult;
-    try {
-      switch (payment.payment_method) {
-        case "telebirr":
-          verificationResult =
-            await PaymentGatewayService.verifyTelebirrPayment(
+    if (payment.status === "pending") {
+      let verificationResult;
+      try {
+        switch (payment.payment_method) {
+          case "telebirr":
+            verificationResult =
+              await PaymentGatewayService.verifyTelebirrPayment(
+                payment.gateway_transaction_id,
+              );
+            break;
+          case "chapa":
+            verificationResult = await PaymentGatewayService.verifyChapaPayment(
               payment.gateway_transaction_id,
             );
-          break;
-        case "chapa":
-          verificationResult = await PaymentGatewayService.verifyChapaPayment(
-            payment.gateway_transaction_id,
-          );
-          break;
-        case "bank_transfer":
-          // Bank transfers need manual verification
-          return payment;
-        default:
-          throw new Error("Unsupported payment method for verification");
-      }
+            break;
+          case "bank_transfer":
+            // Bank transfers need manual verification, return as is for now
+            return { ...payment, jwt: null, is_newly_verified: false };
+          default:
+            throw new Error("Unsupported payment method for verification");
+        }
 
-      // Process payment based on verification result
-      const status = verificationResult.success ? "completed" : "failed";
-      return await this.processPayment(paymentId, status, verificationResult);
-    } catch (error) {
-      console.error("Payment verification failed:", error);
-      return await this.processPayment(paymentId, "failed", {
-        error: error.message,
+        // Process payment based on verification result
+        const status = verificationResult.success ? "completed" : "failed";
+        payment = await this.processPayment(paymentId, status, verificationResult); // Update payment object with processed status
+        is_newly_verified = true; // Mark that verification just happened
+      } catch (error) {
+        console.error("Payment verification failed:", error);
+        payment = await this.processPayment(paymentId, "failed", {
+          error: error.message,
+        });
+        is_newly_verified = true; // Mark as failed verification
+      }
+    }
+
+    // Generate JWT if payment is completed (either newly or already)
+    let jwtToken = null;
+    if (payment.status === "completed") {
+      const payload = {
+        payment_id: payment.id,
+        user_id: payment.user_id,
+        booking_id: payment.booking_id,
+        booking_reference: payment.booking_reference,
+        status: "verified", // Indicate it's a verification token
+      };
+      jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: "1h", // Short expiry for verification tokens
       });
     }
+    
+    // Return payment details along with the JWT and verification status
+    return {
+      ...payment,
+      jwt: jwtToken,
+      is_newly_verified: is_newly_verified
+    };
   }
 
   static async processRefund(paymentId, refundData) {
@@ -442,12 +477,12 @@ export class PaymentService {
     const total = countResult[0].total;
 
     return {
-      payments,
+      items: payments,
       pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
+        page: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
       },
     };
   }

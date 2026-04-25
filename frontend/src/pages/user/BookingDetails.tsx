@@ -1,109 +1,427 @@
-import React from "react";
-import { useParams } from "react-router-dom";
+import React, { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarIcon,
   MapPinIcon,
   UserGroupIcon,
   ClockIcon,
   CreditCardIcon,
+  ArrowLeftIcon,
+  CheckBadgeIcon,
+  ExclamationTriangleIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
+import { bookingService } from "../../services/bookings";
+import { paymentService } from "../../services/payments";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import EmptyState from "../../components/ui/EmptyState";
+import PaymentVerificationModal from "../../components/ui/PaymentVerificationModal";
+import CancelBookingModal from "../../components/ui/CancelBookingModal";
+import Toast from "../../components/ui/Toast";
+import type { BookingStatus } from "../../types";
 
 const BookingDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  const {
+    data: bookingData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["booking", id],
+    queryFn: () => bookingService.getBooking(Number(id)),
+    enabled: !!id,
+  });
+
+  const { data: paymentsData } = useQuery({
+    queryKey: ["booking-payments", id],
+    queryFn: () => paymentService.getBookingPayments(Number(id!)),
+    enabled: !!id,
+  });
+
+  const getStatusVariant = (status: BookingStatus) => {
+    switch (status) {
+      case "confirmed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "cancelled":
+        return "danger";
+      case "completed":
+        return "info";
+      default:
+        return "default";
+    }
+  };
+
+  const getPaymentStatusVariant = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "success";
+      case "pending":
+        return "warning";
+      case "failed":
+        return "danger";
+      case "refunded":
+        return "info";
+      default:
+        return "default";
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error || !bookingData?.success) {
+    return (
+      <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+        <p className="text-error-600 mb-6 font-medium">
+          Failed to load booking details
+        </p>
+        <Button onClick={() => refetch()}>Try Again</Button>
+      </div>
+    );
+  }
+
+  const booking = bookingData.data;
+  const payments = paymentsData?.data || [];
+  const latestPayment = payments[0]; // Payments are ordered by created_at DESC
+
+  const showVerifyButton =
+    latestPayment &&
+    latestPayment.status === "pending" &&
+    booking.status !== "cancelled";
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
-        <h1 className="text-4xl font-bold font-display mb-2">
-          Booking Details
-        </h1>
-        <p className="text-primary-100 text-lg">
-          View your booking information and status 📋
-        </p>
-      </div>
-
-      {/* Booking ID Card */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-gray-900 font-display">
-              Booking Reference
-            </h3>
-            <p className="text-2xl font-bold text-primary-600 font-mono">
-              #{id}
+            <div className="flex items-center gap-4 mb-4">
+              <Link to="/user/bookings">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+                >
+                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                  Back to Bookings
+                </Button>
+              </Link>
+            </div>
+            <h1 className="text-4xl font-bold font-display mb-2">
+              Booking Details
+            </h1>
+            <p className="text-primary-100 text-lg">
+              {booking.package_title} • {booking.package_location}
             </p>
           </div>
-          <Badge variant="success">Confirmed</Badge>
+          <div className="text-right">
+            <p className="text-primary-100 text-sm mb-1">Booking Reference</p>
+            <p className="text-2xl font-bold font-mono">
+              {booking.booking_reference}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
-        <EmptyState
-          icon={<CalendarIcon className="h-16 w-16" />}
-          title="Booking Details Loading"
-          description="The detailed booking information system is currently under development. This will include complete booking details, payment status, itinerary, and customer support options."
-          action={{
-            label: "Back to My Bookings",
-            onClick: () => (window.location.href = "/user/bookings"),
-          }}
+      {/* Status and Actions */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Booking Status</p>
+              <Badge variant={getStatusVariant(booking.status)} size="lg">
+                {booking.status.toUpperCase()}
+              </Badge>
+            </div>
+            {latestPayment && (
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Payment Status</p>
+                <Badge
+                  variant={getPaymentStatusVariant(latestPayment.status)}
+                  size="lg"
+                >
+                  {latestPayment.status.toUpperCase()}
+                </Badge>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3">
+            {showVerifyButton && (
+              <Button
+                variant="outline"
+                className="border-green-300 text-green-700 hover:bg-green-50"
+                onClick={() => setIsVerificationModalOpen(true)}
+              >
+                <CheckBadgeIcon className="h-5 w-5 mr-2" />
+                Verify Payment
+              </Button>
+            )}
+            {booking.status === "pending" && (
+              <Button
+                variant="outline"
+                className="border-red-300 text-red-700 hover:bg-red-50"
+                onClick={() => setIsCancelModalOpen(true)}
+              >
+                <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
+                Cancel Booking
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Booking Information */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Package Details */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900 font-display mb-6">
+              Package Information
+            </h2>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {booking.package_title}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div className="flex items-center bg-gray-50 rounded-xl p-3">
+                    <MapPinIcon className="h-5 w-5 mr-3 text-primary-500" />
+                    <span className="font-medium">
+                      {booking.package_location}
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-gray-50 rounded-xl p-3">
+                    <ClockIcon className="h-5 w-5 mr-3 text-primary-500" />
+                    <span className="font-medium">
+                      {booking.duration_days} days
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-gray-50 rounded-xl p-3">
+                    <CalendarIcon className="h-5 w-5 mr-3 text-primary-500" />
+                    <span className="font-medium">
+                      {new Date(booking.booking_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center bg-gray-50 rounded-xl p-3">
+                    <UserGroupIcon className="h-5 w-5 mr-3 text-primary-500" />
+                    <span className="font-medium">
+                      {booking.number_of_people} travelers
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {booking.special_requests && (
+                <div className="bg-primary-50 rounded-xl p-4 border border-primary-200">
+                  <h4 className="font-semibold text-primary-900 mb-2">
+                    Special Requests
+                  </h4>
+                  <p className="text-primary-700">{booking.special_requests}</p>
+                </div>
+              )}
+
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">
+                  Tour Operator
+                </h4>
+                <p className="text-gray-700 font-medium">
+                  {booking.company_name}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment History */}
+          {payments.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-gray-100">
+              <h2 className="text-2xl font-bold text-gray-900 font-display mb-6">
+                Payment History
+              </h2>
+
+              <div className="space-y-4">
+                {payments.map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="border border-gray-200 rounded-xl p-4"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <CreditCardIcon className="h-5 w-5 text-gray-500" />
+                        <span className="font-medium">
+                          {paymentService.getPaymentMethodName(
+                            payment.payment_method,
+                          )}
+                        </span>
+                        <Badge
+                          variant={getPaymentStatusVariant(payment.status)}
+                        >
+                          {payment.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <span className="font-bold text-lg">
+                        {paymentService.formatAmount(
+                          payment.total_amount || payment.amount,
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium">Transaction ID:</span>
+                        <p className="font-mono">
+                          {payment.transaction_reference}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="font-medium">Date:</span>
+                        <p>{new Date(payment.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    {payment.fees && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex justify-between text-sm">
+                          <span>Amount:</span>
+                          <span>
+                            {paymentService.formatAmount(payment.amount)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Fees:</span>
+                          <span>
+                            {paymentService.formatAmount(payment.fees)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between font-medium">
+                          <span>Total:</span>
+                          <span>
+                            {paymentService.formatAmount(payment.total_amount)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Booking Summary */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 font-display mb-4">
+              Booking Summary
+            </h3>
+
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Package Price:</span>
+                <span className="font-medium">
+                  {paymentService.formatAmount(
+                    booking.total_amount / booking.number_of_people,
+                  )}{" "}
+                  × {booking.number_of_people}
+                </span>
+              </div>
+              <div className="flex justify-between font-bold text-lg pt-3 border-t border-gray-200">
+                <span>Total Amount:</span>
+                <span className="text-primary-600">
+                  {paymentService.formatAmount(booking.total_amount)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-500 mb-2">Booked on:</p>
+              <p className="font-medium">
+                {new Date(booking.created_at).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          {/* Contact Information */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 font-display mb-4">
+              Need Help?
+            </h3>
+
+            <div className="space-y-3">
+              <Button variant="outline" fullWidth className="justify-start">
+                <PhoneIcon className="h-4 w-4 mr-3" />
+                Call Support
+              </Button>
+
+              <Button variant="outline" fullWidth className="justify-start">
+                <EnvelopeIcon className="h-4 w-4 mr-3" />
+                Email Support
+              </Button>
+
+              <Button variant="outline" fullWidth className="justify-start">
+                <DocumentTextIcon className="h-4 w-4 mr-3" />
+                Download Receipt
+              </Button>
+            </div>
+
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-xs text-blue-800">
+                For urgent matters, please call our 24/7 support line or contact
+                the tour operator directly.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Verification Modal */}
+      {showVerifyButton && latestPayment && (
+        <PaymentVerificationModal
+          isOpen={isVerificationModalOpen}
+          onClose={() => setIsVerificationModalOpen(false)}
+          paymentId={latestPayment.id}
+          bookingReference={booking.booking_reference}
+          amount={latestPayment.total_amount || latestPayment.amount}
+          paymentMethod={latestPayment.payment_method}
         />
-      </div>
+      )}
 
-      {/* Feature Preview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200">
-          <h3 className="text-lg font-bold text-primary-900 mb-3 font-display">
-            Booking Information
-          </h3>
-          <ul className="space-y-2 text-sm text-primary-700">
-            <li className="flex items-center">
-              <CalendarIcon className="w-4 h-4 mr-3" />
-              Travel dates and schedule
-            </li>
-            <li className="flex items-center">
-              <MapPinIcon className="w-4 h-4 mr-3" />
-              Destination and itinerary details
-            </li>
-            <li className="flex items-center">
-              <UserGroupIcon className="w-4 h-4 mr-3" />
-              Number of travelers and preferences
-            </li>
-            <li className="flex items-center">
-              <ClockIcon className="w-4 h-4 mr-3" />
-              Duration and timing information
-            </li>
-          </ul>
-        </div>
+      {/* Cancel Booking Modal */}
+      <CancelBookingModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        bookingId={booking.id}
+        bookingReference={booking.booking_reference}
+        packageTitle={booking.package_title}
+        onSuccess={() => setShowSuccessToast(true)}
+      />
 
-        <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-2xl p-6 border border-success-200">
-          <h3 className="text-lg font-bold text-success-900 mb-3 font-display">
-            Payment & Support
-          </h3>
-          <ul className="space-y-2 text-sm text-success-700">
-            <li className="flex items-center">
-              <CreditCardIcon className="w-4 h-4 mr-3" />
-              Payment status and receipt
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3"></div>
-              Cancellation and refund options
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3" />
-              Customer support contact
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3" />
-              Booking modification requests
-            </li>
-          </ul>
-        </div>
-      </div>
+      {/* Success Toast */}
+      <Toast
+        type="success"
+        title="Booking Cancelled"
+        message="Your booking has been successfully cancelled. Refund processing will begin shortly."
+        isVisible={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+      />
     </div>
   );
 };

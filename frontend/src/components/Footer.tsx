@@ -208,9 +208,9 @@ const Footer: React.FC = () => {
         <div className="border-t border-slate-700/50 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="flex items-center space-x-2">
-              <Heart className="h-4 w-4 text-red-400" />
+              <Shield className="h-4 w-4 text-blue-400" />
               <p className="text-slate-400 text-sm">
-                Made with love for Ethiopian tourism
+                Official Tourism Platform for East Hararghe
               </p>
             </div>
 

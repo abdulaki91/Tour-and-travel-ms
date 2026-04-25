@@ -9,12 +9,13 @@ import { bookingService } from "../services/bookings";
 import type { CreateBookingData } from "../services/bookings";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
+import PaymentForm from "./PaymentForm";
 
 const bookingSchema = z.object({
   number_of_people: z
     .number()
     .min(1, "At least 1 person required")
-    .max(50, "Maximum 50 people allowed"),
+    .max(100, "Maximum 100 people allowed"),
   special_requests: z.string().optional(),
 });
 
@@ -31,7 +32,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [step, setStep] = useState<"booking" | "payment">("booking");
+  const [step, setStep] = useState<"booking" | "summary" | "payment">("booking");
+  const [createdBooking, setCreatedBooking] = useState<any>(null);
 
   const {
     register,
@@ -52,8 +54,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
     mutationFn: (data: CreateBookingData) => bookingService.createBooking(data),
     onSuccess: (response) => {
       if (response.success) {
-        toast.success("Booking created successfully!");
-        onSuccess();
+        setCreatedBooking(response.data);
+        setStep("payment");
+        toast.success("Booking details saved. Please complete payment.");
       } else {
         toast.error(response.message || "Failed to create booking");
       }
@@ -65,7 +68,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   const onSubmit = (data: BookingFormData) => {
     if (step === "booking") {
-      setStep("payment");
+      setStep("summary");
       return;
     }
 
@@ -78,7 +81,33 @@ const BookingForm: React.FC<BookingFormProps> = ({
     });
   };
 
-  if (step === "payment") {
+  if (step === "payment" && createdBooking) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4">
+          <p className="text-primary-800 text-sm font-medium">
+            Booking ID: <span className="font-bold">{createdBooking.booking_reference}</span>
+          </p>
+          <p className="text-primary-600 text-xs">
+            Please complete the payment to confirm your booking.
+          </p>
+        </div>
+        
+        <PaymentForm
+          bookingId={createdBooking.id}
+          amount={createdBooking.total_amount}
+          onSuccess={(payment) => {
+            if (payment.status === "completed") {
+              onSuccess();
+            }
+          }}
+          onCancel={onCancel}
+        />
+      </div>
+    );
+  }
+
+  if (step === "summary") {
     return (
       <div className="space-y-6">
         <div className="bg-gray-50 rounded-lg p-4">
@@ -112,12 +141,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-medium text-blue-900 mb-2">
-            Payment Information
+            Confirm & Proceed
           </h4>
           <p className="text-blue-700 text-sm">
-            This is a demo booking system. In a real application, you would
-            integrate with a payment processor like Stripe, PayPal, or similar
-            service.
+            By clicking confirm, you will create a pending booking. You will then be 
+            prompted to select your payment method (Telebirr, Chapa, or Bank Transfer).
           </p>
         </div>
 
@@ -134,7 +162,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             loading={createBookingMutation.isPending}
             className="flex-1"
           >
-            Confirm Booking
+            Confirm & Select Payment
           </Button>
         </div>
       </div>
