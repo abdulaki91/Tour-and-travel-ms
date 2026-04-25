@@ -1,6 +1,6 @@
 import { PaymentService } from "../services/paymentService.js";
 import { BookingService } from "../services/bookingService.js";
-import qrcode from 'qrcode'; // Import qrcode library
+import qrcode from "qrcode"; // Import qrcode library
 
 export class PaymentController {
   static async createPayment(req, res) {
@@ -246,6 +246,67 @@ export class PaymentController {
     }
   }
 
+  // New endpoint for demo payment completion
+  static async completeDemoPayment(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Get payment details first
+      const payment = await PaymentService.getPaymentById(id);
+      if (!payment) {
+        return res.status(404).json({
+          success: false,
+          message: "Payment not found",
+        });
+      }
+
+      // Verify user owns this payment
+      if (payment.user_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized to complete this payment",
+        });
+      }
+
+      // Verify it's a demo payment
+      if (payment.payment_method !== "demo") {
+        return res.status(400).json({
+          success: false,
+          message: "This endpoint is only for demo payments",
+        });
+      }
+
+      // Verify payment is still pending
+      if (payment.status !== "pending") {
+        return res.status(400).json({
+          success: false,
+          message: `Payment is already ${payment.status}`,
+        });
+      }
+
+      // Complete the demo payment
+      const completedPayment = await PaymentService.processPayment(
+        id,
+        "completed",
+        {
+          demo_completed: true,
+          completed_at: new Date().toISOString(),
+        },
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Demo payment completed successfully",
+        data: completedPayment,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   // New endpoint to generate QR code for payment verification
   static async generateVerificationQrCode(req, res) {
     try {
@@ -268,12 +329,13 @@ export class PaymentController {
           message: "Unauthorized to access this payment's verification QR code",
         });
       }
-      
+
       // Verify payment status (ensure it's completed)
       if (payment.status !== "completed") {
         return res.status(400).json({
           success: false,
-          message: "Payment is not completed and cannot generate a verification QR code.",
+          message:
+            "Payment is not completed and cannot generate a verification QR code.",
         });
       }
 
@@ -289,23 +351,24 @@ export class PaymentController {
           message: "Could not generate verification token.",
         });
       }
-      
+
       // Generate QR code from the JWT
       const qrCodeBuffer = await qrcode.toBuffer(verifiedPayment.jwt, {
-        errorCorrectionLevel: 'H', // High error correction for robustness
-        type: 'png',
+        errorCorrectionLevel: "H", // High error correction for robustness
+        type: "png",
         margin: 2,
       });
 
       // Set headers and send QR code image
-      res.setHeader('Content-Type', 'image/png');
+      res.setHeader("Content-Type", "image/png");
       res.send(qrCodeBuffer);
-
     } catch (error) {
       console.error("Error generating verification QR code:", error);
       res.status(500).json({
         success: false,
-        message: error.message || "An unexpected error occurred while generating the QR code.",
+        message:
+          error.message ||
+          "An unexpected error occurred while generating the QR code.",
       });
     }
   }

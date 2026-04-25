@@ -150,6 +150,7 @@ export class BookingService {
       page = 1,
       limit = 10,
       status,
+      payment_status,
       sort_by = "created_at",
       sort_order = "desc",
     } = filters;
@@ -161,6 +162,11 @@ export class BookingService {
     if (status) {
       whereConditions.push("b.status = ?");
       queryParams.push(status);
+    }
+
+    if (payment_status) {
+      whereConditions.push("pay.status = ?");
+      queryParams.push(payment_status);
     }
 
     const whereClause = whereConditions.join(" AND ");
@@ -189,7 +195,7 @@ export class BookingService {
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN companies c ON p.company_id = c.id
-      LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed')
+      LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed', 'failed', 'refunded')
       WHERE ${whereClause}
       ORDER BY b.created_at DESC, b.id DESC
       LIMIT ? OFFSET ?`,
@@ -198,7 +204,10 @@ export class BookingService {
 
     // Get total count
     const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as total FROM bookings b WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total 
+       FROM bookings b 
+       LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed', 'failed', 'refunded')
+       WHERE ${whereClause}`,
       queryParams,
     );
 
@@ -227,6 +236,7 @@ export class BookingService {
       page = 1,
       limit = 10,
       status,
+      payment_status,
       sort_by = "created_at",
       sort_order = "desc",
     } = filters;
@@ -240,6 +250,11 @@ export class BookingService {
       queryParams.push(status);
     }
 
+    if (payment_status) {
+      whereConditions.push("pay.status = ?");
+      queryParams.push(payment_status);
+    }
+
     const whereClause = whereConditions.join(" AND ");
 
     const [bookings] = await pool.execute(
@@ -247,13 +262,19 @@ export class BookingService {
         b.*,
         p.title as package_title,
         p.location as package_location,
-        u.name as first_name,
-        '' as last_name,
-        u.email as user_email,
-        u.phone as user_phone
+        p.price as package_price,
+        u.name as customer_name,
+        u.email as customer_email,
+        u.phone as customer_phone,
+        pay.id as payment_id,
+        pay.status as payment_status,
+        pay.payment_method,
+        pay.amount as payment_amount,
+        pay.transaction_reference
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN users u ON b.user_id = u.id
+      LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed', 'failed', 'refunded')
       WHERE ${whereClause}
       ORDER BY b.${sort_by} ${sort_order.toUpperCase()}
       LIMIT ? OFFSET ?`,
@@ -265,6 +286,7 @@ export class BookingService {
       `SELECT COUNT(*) as total 
        FROM bookings b 
        JOIN packages p ON b.package_id = p.id 
+       LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed', 'failed', 'refunded')
        WHERE ${whereClause}`,
       queryParams,
     );
@@ -363,6 +385,96 @@ export class BookingService {
     }
 
     return updatedBooking;
+  }
+
+  static async sendBookingConfirmation(bookingId, companyId) {
+    // Get booking details
+    const [bookings] = await pool.execute(
+      `SELECT 
+        b.*,
+        p.title as package_title,
+        p.location as package_location,
+        p.start_date,
+        p.end_date,
+        u.name as customer_name,
+        u.email as customer_email,
+        c.company_name
+      FROM bookings b
+      JOIN packages p ON b.package_id = p.id
+      JOIN users u ON b.user_id = u.id
+      JOIN companies c ON p.company_id = c.id
+      WHERE b.id = ? AND p.company_id = ?`,
+      [bookingId, companyId],
+    );
+
+    if (bookings.length === 0) {
+      throw new Error("Booking not found or unauthorized");
+    }
+
+    const booking = bookings[0];
+
+    try {
+      // Send confirmation notification to customer
+      await NotificationService.createNotification(booking.user_id, {
+        title: "Booking Confirmation",
+        message: `Your booking for "${booking.package_title}" has been confirmed by ${booking.company_name}. Booking reference: ${booking.booking_reference}`,
+        type: "booking_confirmed",
+        data: {
+          booking_id: booking.id,
+          booking_reference: booking.booking_reference,
+          package_title: booking.package_title,
+        },
+      });
+
+      // Emit real-time update
+      emitBookingUpdate(booking.user_id, {
+        type: "booking_confirmation_sent",
+        booking: booking,
+      });
+
+      return {
+        success: true,
+        message: "Booking confirmation sent successfully",
+        booking: booking,
+      };
+    } catch (error) {
+      console.error("Error sending booking confirmation:", error);
+      throw new Error("Failed to send booking confirmation");
+    }
+  }
+
+  static async getBookingStats(companyId) {
+    const [stats] = await pool.execute(
+      `SELECT 
+        COUNT(*) as total_bookings,
+        SUM(CASE WHEN b.status = 'pending' THEN 1 ELSE 0 END) as pending_bookings,
+        SUM(CASE WHEN b.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_bookings,
+        SUM(CASE WHEN b.status = 'completed' THEN 1 ELSE 0 END) as completed_bookings,
+        SUM(CASE WHEN b.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_bookings,
+        SUM(CASE WHEN pay.status = 'pending' THEN 1 ELSE 0 END) as pending_payments,
+        SUM(CASE WHEN pay.status = 'completed' THEN 1 ELSE 0 END) as completed_payments,
+        SUM(CASE WHEN pay.status = 'failed' THEN 1 ELSE 0 END) as failed_payments,
+        SUM(CASE WHEN pay.status = 'completed' THEN b.total_amount ELSE 0 END) as total_revenue
+      FROM bookings b
+      JOIN packages p ON b.package_id = p.id
+      LEFT JOIN payments pay ON b.id = pay.booking_id
+      WHERE p.company_id = ?`,
+      [companyId],
+    );
+
+    return (
+      stats[0] || {
+        total_bookings: 0,
+        pending_bookings: 0,
+        confirmed_bookings: 0,
+        completed_bookings: 0,
+        cancelled_bookings: 0,
+        pending_payments: 0,
+        completed_payments: 0,
+        failed_payments: 0,
+        total_revenue: 0,
+      }
+    );
   }
 
   static async cancelBooking(id, userId) {

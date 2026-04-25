@@ -56,6 +56,23 @@ router.get(
   PaymentController.verifyPayment,
 );
 
+// Complete demo payment
+router.post(
+  "/:id/complete-demo",
+  authenticate,
+  authorize("USER"),
+  validateParams(idValidation),
+  PaymentController.completeDemoPayment,
+);
+
+// Generate QR code for payment verification
+router.get(
+  "/:paymentId/qr-code",
+  authenticate,
+  authorize("USER"),
+  PaymentController.generateVerificationQrCode,
+);
+
 // Process refund (admin only)
 router.post(
   "/:id/refund",

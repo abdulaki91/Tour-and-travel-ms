@@ -7,11 +7,11 @@ export const createPaymentValidation = Joi.object({
     "any.required": "Amount is required",
   }),
   payment_method: Joi.string()
-    .valid("telebirr", "chapa", "bank_transfer")
+    .valid("demo", "telebirr", "chapa", "bank_transfer")
     .required()
     .messages({
       "any.only":
-        "Payment method must be one of: telebirr, chapa, bank_transfer",
+        "Payment method must be one of: demo, telebirr, chapa, bank_transfer",
       "any.required": "Payment method is required",
     }),
   user_phone: Joi.string()

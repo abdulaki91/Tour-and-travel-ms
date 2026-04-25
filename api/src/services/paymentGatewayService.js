@@ -109,60 +109,60 @@ export class PaymentGatewayService {
     };
   }
 
-  // Verify Telebirr Payment
+  // Verify Telebirr Payment - Always succeeds for demo purposes
   static async verifyTelebirrPayment(transactionId) {
     try {
-      // Mock verification
-      // In production, call Telebirr verification API
+      // Simulate a small delay for realism
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Simulate random success/failure for demo
-      const isSuccess = Math.random() > 0.2; // 80% success rate
-
+      // Always return success for demo purposes
       return {
-        success: isSuccess,
-        status: isSuccess ? "completed" : "failed",
+        success: true,
+        status: "completed",
         transaction_id: transactionId,
-        amount: 1000, // This would come from the API response
+        amount: null, // Will use stored payment amount
         verified_at: new Date().toISOString(),
+        verification_note: "Auto-verified for demo purposes",
       };
     } catch (error) {
       console.error("Telebirr verification failed:", error);
+      // Even if there's an error, return success for demo
       return {
-        success: false,
-        status: "failed",
-        error: error.message,
+        success: true,
+        status: "completed",
+        transaction_id: transactionId,
+        amount: null,
+        verified_at: new Date().toISOString(),
+        verification_note: "Auto-verified (fallback)",
       };
     }
   }
 
-  // Verify Chapa Payment
+  // Verify Chapa Payment - Always succeeds for demo purposes
   static async verifyChapaPayment(transactionId) {
     try {
-      // Mock verification
-      // In production, call Chapa verification API
+      // Simulate a small delay for realism
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
-      const headers = {
-        Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
-      };
-
-      // const response = await axios.get(`https://api.chapa.co/v1/transaction/verify/${transactionId}`, { headers });
-
-      // Mock successful response (100% success rate for demo)
-      const isSuccess = true;
-
+      // Always return success for demo purposes
       return {
-        success: isSuccess,
+        success: true,
         status: "completed",
         transaction_id: transactionId,
         amount: null, // processPayment will fall back to stored payment amount
         verified_at: new Date().toISOString(),
+        verification_note: "Auto-verified for demo purposes",
       };
     } catch (error) {
       console.error("Chapa verification failed:", error);
+      // Even if there's an error, return success for demo
       return {
-        success: false,
-        status: "failed",
-        error: error.message,
+        success: true,
+        status: "completed",
+        transaction_id: transactionId,
+        amount: null,
+        verified_at: new Date().toISOString(),
+        verification_note: "Auto-verified (fallback)",
       };
     }
   }
@@ -184,6 +184,13 @@ export class PaymentGatewayService {
           break;
         case "chapa":
           refundResult = await this.processChapaRefund(
+            transaction_id,
+            amount,
+            reason,
+          );
+          break;
+        case "demo":
+          refundResult = await this.processDemoRefund(
             transaction_id,
             amount,
             reason,
@@ -271,6 +278,12 @@ export class PaymentGatewayService {
   // Get payment method fees
   static getPaymentFees(method, amount) {
     const fees = {
+      demo: {
+        fixed: 0, // No fees for demo
+        percentage: 0,
+        min: 0,
+        max: 0,
+      },
       telebirr: {
         fixed: 5, // 5 ETB fixed fee
         percentage: 0.015, // 1.5%
@@ -298,6 +311,71 @@ export class PaymentGatewayService {
     const totalFee = feeConfig.fixed + percentageFee;
 
     return Math.min(Math.max(totalFee, feeConfig.min), feeConfig.max);
+  }
+
+  // Demo Payment Integration - Simple and instant
+  static async initiateDemoPayment(paymentData) {
+    const { amount, booking_reference } = paymentData;
+
+    try {
+      // Generate a simple demo transaction ID
+      const transactionId = `DEMO_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      return {
+        success: true,
+        payment_url: null, // No external URL needed
+        transaction_id: transactionId,
+        status: "pending",
+        demo_instructions: {
+          message:
+            "This is a demo payment. Click 'Complete Payment' to simulate successful payment.",
+          amount: amount,
+          reference: booking_reference,
+          transaction_id: transactionId,
+        },
+      };
+    } catch (error) {
+      console.error("Demo payment initiation failed:", error);
+      throw new Error("Failed to initiate demo payment");
+    }
+  }
+
+  // Verify Demo Payment - Always succeeds for demo purposes
+  static async verifyDemoPayment(transactionId) {
+    try {
+      // Simulate a small delay for realism
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Demo payments always succeed
+      return {
+        success: true,
+        status: "completed",
+        transaction_id: transactionId,
+        amount: null, // Will use stored payment amount
+        verified_at: new Date().toISOString(),
+        demo_note: "Demo payment completed successfully",
+      };
+    } catch (error) {
+      console.error("Demo verification failed:", error);
+      return {
+        success: false,
+        status: "failed",
+        error: error.message,
+      };
+    }
+  }
+
+  // Process Demo Refund
+  static async processDemoRefund(transactionId, amount, reason) {
+    // Demo refund - always succeeds instantly
+    return {
+      success: true,
+      refund_id: `DEMO_REF_${Date.now()}`,
+      status: "refund_completed",
+      amount: amount,
+      estimated_completion: "Instant (Demo)",
+      note: "Demo refund processed instantly",
+    };
   }
 
   // Currency conversion (if needed)

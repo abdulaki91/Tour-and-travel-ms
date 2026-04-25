@@ -81,4 +81,14 @@ export const bookingService = {
     const response = await api.get(`/bookings/company?${params.toString()}`);
     return response.data;
   },
+
+  async getCompanyBookingStats(): Promise<ApiResponse<any>> {
+    const response = await api.get("/bookings/company/stats");
+    return response.data;
+  },
+
+  async sendBookingConfirmation(id: number): Promise<ApiResponse<Booking>> {
+    const response = await api.post(`/bookings/${id}/send-confirmation`);
+    return response.data;
+  },
 };

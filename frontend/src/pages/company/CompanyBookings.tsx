@@ -5,9 +5,10 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  EyeIcon,
-  UserIcon,
   CurrencyDollarIcon,
+  FunnelIcon,
+  EyeIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { bookingService } from "../../services/bookings";
 import EmptyState from "../../components/ui/EmptyState";
@@ -15,6 +16,7 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Pagination from "../../components/common/Pagination";
+import BookingManagement from "../../components/company/BookingManagement";
 import type { Booking, BookingFilters } from "../../types/booking";
 
 const CompanyBookings: React.FC = () => {
@@ -24,51 +26,81 @@ const CompanyBookings: React.FC = () => {
     sort_by: "created_at",
     sort_order: "desc",
   });
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["company-bookings", filters],
     queryFn: () => bookingService.getCompanyBookings(filters),
   });
 
+  const { data: statsData } = useQuery({
+    queryKey: ["company-booking-stats"],
+    queryFn: () => bookingService.getCompanyBookingStats(),
+  });
+
   const bookings = data?.data?.items || [];
-  const pagination = data?.data || { total: 0, page: 1, totalPages: 1 };
-
-  // Calculate stats from actual data
-  const stats = {
-    total: bookings.length,
-    pending: bookings.filter((b) => b.status === "pending").length,
-    confirmed: bookings.filter((b) => b.status === "confirmed").length,
-    cancelled: bookings.filter((b) => b.status === "cancelled").length,
-    completed: bookings.filter((b) => b.status === "completed").length,
+  const pagination = data?.data?.pagination || {
+    total: 0,
+    page: 1,
+    totalPages: 1,
+  };
+  const stats = statsData?.data || {
+    total_bookings: 0,
+    pending_bookings: 0,
+    confirmed_bookings: 0,
+    completed_bookings: 0,
+    cancelled_bookings: 0,
+    pending_payments: 0,
+    completed_payments: 0,
+    failed_payments: 0,
+    total_revenue: 0,
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "warning";
-      case "confirmed":
-        return "primary";
-      case "completed":
-        return "success";
-      case "cancelled":
-        return "error";
-      default:
-        return "gray";
-    }
+  const handleFilterChange = (key: keyof BookingFilters, value: any) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+      page: 1,
+    }));
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+  const handleClearFilters = () => {
+    setFilters({
+      page: 1,
+      limit: 10,
+      sort_by: "created_at",
+      sort_order: "desc",
     });
+  };
+
+  const handleViewAll = () => {
+    setShowAll(true);
+    setFilters((prev) => ({
+      ...prev,
+      limit: 1000,
+      page: 1,
+    }));
+  };
+
+  const handleViewPaginated = () => {
+    setShowAll(false);
+    setFilters((prev) => ({
+      ...prev,
+      limit: 10,
+      page: 1,
+    }));
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters((prev) => ({ ...prev, page }));
   };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "ETB",
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -82,8 +114,11 @@ const CompanyBookings: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <p className="text-red-600">Error loading bookings</p>
+      <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+        <p className="text-error-600 mb-6 font-medium">
+          Failed to load bookings
+        </p>
+        <Button onClick={() => refetch()}>Try Again</Button>
       </div>
     );
   }
@@ -92,16 +127,26 @@ const CompanyBookings: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 rounded-2xl p-8 text-white shadow-xl">
-        <h1 className="text-4xl font-bold font-display mb-2">
-          Customer Bookings
-        </h1>
-        <p className="text-primary-100 text-lg">
-          Manage all your tour bookings and reservations 📅
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold font-display mb-2">
+              Booking Management
+            </h1>
+            <p className="text-primary-100 text-lg">
+              Manage customer reservations and bookings 📋
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-primary-100 text-sm">Total Revenue</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(stats.total_revenue)}
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Enhanced Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-100 group hover:scale-105">
           <div className="flex items-center">
             <div className="flex-shrink-0 p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-lg">
@@ -112,7 +157,7 @@ const CompanyBookings: React.FC = () => {
                 Total Bookings
               </p>
               <p className="text-3xl font-bold text-gray-900 font-display">
-                {pagination.total}
+                {stats.total_bookings}
               </p>
             </div>
           </div>
@@ -128,7 +173,7 @@ const CompanyBookings: React.FC = () => {
                 Pending
               </p>
               <p className="text-3xl font-bold text-gray-900 font-display">
-                {stats.pending}
+                {stats.pending_bookings}
               </p>
             </div>
           </div>
@@ -144,7 +189,7 @@ const CompanyBookings: React.FC = () => {
                 Confirmed
               </p>
               <p className="text-3xl font-bold text-gray-900 font-display">
-                {stats.confirmed}
+                {stats.confirmed_bookings}
               </p>
             </div>
           </div>
@@ -152,185 +197,226 @@ const CompanyBookings: React.FC = () => {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-100 group hover:scale-105">
           <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl shadow-lg">
-              <XCircleIcon className="h-8 w-8 text-white" />
+            <div className="flex-shrink-0 p-3 bg-gradient-to-br from-info-500 to-info-600 rounded-xl shadow-lg">
+              <CurrencyDollarIcon className="h-8 w-8 text-white" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                Cancelled
+                Completed
               </p>
               <p className="text-3xl font-bold text-gray-900 font-display">
-                {stats.cancelled}
+                {stats.completed_bookings}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100">
-        {bookings.length === 0 ? (
-          <div className="p-8">
-            <EmptyState
-              icon={<CalendarDaysIcon className="h-16 w-16" />}
-              title="No Bookings Yet"
-              description="When customers book your tour packages, they will appear here. You'll be able to manage reservations, confirm bookings, and communicate with customers."
-              action={{
-                label: "View My Packages",
-                onClick: () => (window.location.href = "/company/packages"),
-              }}
-            />
+      {/* Payment Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-green-600 uppercase tracking-wide">
+                Paid Bookings
+              </p>
+              <p className="text-2xl font-bold text-green-900">
+                {stats.completed_payments}
+              </p>
+            </div>
+            <CheckCircleIcon className="h-8 w-8 text-green-600" />
           </div>
-        ) : (
-          <>
-            {/* Filters */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Recent Bookings
-                </h2>
-                <div className="flex gap-2">
-                  <select
-                    value={filters.status || ""}
-                    onChange={(e) =>
-                      setFilters({
-                        ...filters,
-                        status: e.target.value as any,
-                        page: 1,
-                      })
-                    }
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+        </div>
 
-            {/* Bookings List */}
-            <div className="divide-y divide-gray-200">
-              {bookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="p-6 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {booking.package_title}
-                        </h3>
-                        <Badge
-                          variant={getStatusColor(booking.status) as any}
-                          size="sm"
-                        >
-                          {booking.status.charAt(0).toUpperCase() +
-                            booking.status.slice(1)}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <UserIcon className="h-4 w-4" />
-                          <span>{booking.number_of_people} people</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CalendarDaysIcon className="h-4 w-4" />
-                          <span>{formatDate(booking.booking_date)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CurrencyDollarIcon className="h-4 w-4" />
-                          <span>{formatCurrency(booking.total_amount)}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Ref: {booking.booking_reference}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          (window.location.href = `/company/bookings/${booking.id}`)
-                        }
-                      >
-                        <EyeIcon className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-6 border border-yellow-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-yellow-600 uppercase tracking-wide">
+                Pending Payments
+              </p>
+              <p className="text-2xl font-bold text-yellow-900">
+                {stats.pending_payments}
+              </p>
             </div>
+            <ClockIcon className="h-8 w-8 text-yellow-600" />
+          </div>
+        </div>
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="p-6 border-t border-gray-200">
-                <Pagination
-                  currentPage={pagination.page}
-                  totalPages={pagination.totalPages}
-                  onPageChange={(page) => setFilters({ ...filters, page })}
-                />
-              </div>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-red-600 uppercase tracking-wide">
+                Failed Payments
+              </p>
+              <p className="text-2xl font-bold text-red-900">
+                {stats.failed_payments}
+              </p>
+            </div>
+            <XCircleIcon className="h-8 w-8 text-red-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filters and Controls */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-100">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center space-x-2"
+            >
+              <FunnelIcon className="h-4 w-4" />
+              <span>Filters</span>
+            </Button>
+
+            {!showAll && bookings.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleViewAll}
+                className="flex items-center space-x-2"
+              >
+                <EyeIcon className="h-4 w-4" />
+                <span>View All ({pagination.totalItems})</span>
+              </Button>
             )}
-          </>
+
+            {showAll && (
+              <Button
+                variant="outline"
+                onClick={handleViewPaginated}
+                className="flex items-center space-x-2"
+              >
+                <ChartBarIcon className="h-4 w-4" />
+                <span>Show Paginated</span>
+              </Button>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <span>
+              Showing {bookings.length} of {pagination.totalItems} bookings
+            </span>
+          </div>
+        </div>
+
+        {/* Filter Controls */}
+        {showFilters && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Booking Status
+                </label>
+                <select
+                  className="block w-full rounded-xl border-2 border-gray-200 bg-white shadow-sm focus:border-primary-500 focus:ring-4 focus:ring-primary-100 px-4 py-3 text-sm"
+                  value={filters.status || ""}
+                  onChange={(e) =>
+                    handleFilterChange("status", e.target.value || undefined)
+                  }
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Status
+                </label>
+                <select
+                  className="block w-full rounded-xl border-2 border-gray-200 bg-white shadow-sm focus:border-primary-500 focus:ring-4 focus:ring-primary-100 px-4 py-3 text-sm"
+                  value={filters.payment_status || ""}
+                  onChange={(e) =>
+                    handleFilterChange(
+                      "payment_status",
+                      e.target.value || undefined,
+                    )
+                  }
+                >
+                  <option value="">All Payment Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sort By
+                </label>
+                <select
+                  className="block w-full rounded-xl border-2 border-gray-200 bg-white shadow-sm focus:border-primary-500 focus:ring-4 focus:ring-primary-100 px-4 py-3 text-sm"
+                  value={filters.sort_by || "created_at"}
+                  onChange={(e) =>
+                    handleFilterChange("sort_by", e.target.value)
+                  }
+                >
+                  <option value="created_at">Date Created</option>
+                  <option value="booking_date">Travel Date</option>
+                  <option value="total_amount">Amount</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={handleClearFilters}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Feature Preview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200">
-          <h3 className="text-lg font-bold text-primary-900 mb-3 font-display">
-            Booking Management
-          </h3>
-          <ul className="space-y-2 text-sm text-primary-700">
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
-              View all customer reservations
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
-              Confirm or cancel bookings
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
-              Manage payment status
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
-              Send booking confirmations
-            </li>
-          </ul>
-        </div>
+      {/* Bookings List */}
+      {bookings.length === 0 ? (
+        <EmptyState
+          icon={<CalendarDaysIcon className="h-16 w-16" />}
+          title="No Bookings Found"
+          description="No bookings match your current filters. Try adjusting your search criteria or check back later for new bookings."
+          action={{
+            label: "Clear Filters",
+            onClick: handleClearFilters,
+          }}
+        />
+      ) : (
+        <>
+          <div className="space-y-6">
+            {bookings.map((booking) => (
+              <BookingManagement
+                key={booking.id}
+                booking={booking}
+                onUpdate={() => {
+                  refetch();
+                }}
+              />
+            ))}
+          </div>
 
-        <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-2xl p-6 border border-success-200">
-          <h3 className="text-lg font-bold text-success-900 mb-3 font-display">
-            Customer Communication
-          </h3>
-          <ul className="space-y-2 text-sm text-success-700">
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3"></div>
-              Automated booking notifications
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3"></div>
-              Pre-trip information sharing
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3"></div>
-              Customer support messaging
-            </li>
-            <li className="flex items-center">
-              <div className="w-2 h-2 bg-success-500 rounded-full mr-3"></div>
-              Post-trip follow-up
-            </li>
-          </ul>
-        </div>
-      </div>
+          {/* Pagination */}
+          {!showAll && pagination.totalPages > 1 && (
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
+          )}
+
+          {showAll && bookings.length > 10 && (
+            <div className="text-center text-gray-600 mt-6">
+              Showing all {bookings.length} bookings
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

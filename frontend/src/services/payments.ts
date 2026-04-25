@@ -22,7 +22,7 @@ export interface Payment {
 
 export interface CreatePaymentData {
   amount: number;
-  payment_method: "telebirr" | "chapa" | "bank_transfer";
+  payment_method: "demo" | "telebirr" | "chapa" | "bank_transfer";
   user_phone?: string;
   return_url?: string;
 }
@@ -77,6 +77,13 @@ export const paymentService = {
     return response.data;
   },
 
+  async completeDemoPayment(
+    id: number,
+  ): Promise<{ success: boolean; data: Payment }> {
+    const response = await api.post(`/payments/${id}/complete-demo`);
+    return response.data;
+  },
+
   async processRefund(
     id: number,
     data: RefundData,
@@ -115,6 +122,7 @@ export const paymentService = {
   // Utility functions
   getPaymentMethodName(method: string): string {
     const methods: Record<string, string> = {
+      demo: "Demo Payment",
       telebirr: "Telebirr",
       chapa: "Chapa",
       bank_transfer: "Bank Transfer",
@@ -146,6 +154,8 @@ export const paymentService = {
 
   calculateFees(method: string, amount: number): number {
     switch (method) {
+      case "demo":
+        return 0; // No fees for demo
       case "telebirr":
         return Math.min(Math.max(amount * 0.015 + 5, 5), 100);
       case "chapa":

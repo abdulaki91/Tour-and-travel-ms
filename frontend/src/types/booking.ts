@@ -34,6 +34,7 @@ export interface BookingFilters {
   page?: number;
   limit?: number;
   status?: BookingStatus;
+  payment_status?: "pending" | "completed" | "failed" | "refunded";
   sort_by?: "created_at" | "booking_date" | "total_amount";
   sort_order?: "asc" | "desc";
 }

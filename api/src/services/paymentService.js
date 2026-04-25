@@ -1,10 +1,14 @@
 import pool from "../config/database.js";
-import { generateTransactionReference, generateTokens, verifyAccessToken } from "../utils/jwt.js";
+import {
+  generateTransactionReference,
+  generateTokens,
+  verifyAccessToken,
+} from "../utils/jwt.js";
 import { NotificationService } from "./notificationService.js";
 import { PaymentGatewayService } from "./paymentGatewayService.js";
 import { emitPaymentUpdate } from "../socket/index.js";
-import qrcode from 'qrcode'; // Import qrcode library
-import jwt from 'jsonwebtoken'; // Import jsonwebtoken
+import qrcode from "qrcode"; // Import qrcode library
+import jwt from "jsonwebtoken"; // Import jsonwebtoken
 
 export class PaymentService {
   static async createPayment(bookingId, paymentData) {
@@ -63,6 +67,10 @@ export class PaymentService {
       };
 
       switch (payment_method) {
+        case "demo":
+          gatewayResponse =
+            await PaymentGatewayService.initiateDemoPayment(gatewayPaymentData);
+          break;
         case "telebirr":
           gatewayResponse =
             await PaymentGatewayService.initiateTelebirrPayment(
@@ -267,7 +275,7 @@ export class PaymentService {
   }
 
   static async verifyPayment(paymentId) {
-    const payment = await this.getPaymentById(paymentId);
+    let payment = await this.getPaymentById(paymentId);
     if (!payment) {
       throw new Error("Payment not found");
     }
@@ -278,6 +286,11 @@ export class PaymentService {
       let verificationResult;
       try {
         switch (payment.payment_method) {
+          case "demo":
+            verificationResult = await PaymentGatewayService.verifyDemoPayment(
+              payment.gateway_transaction_id,
+            );
+            break;
           case "telebirr":
             verificationResult =
               await PaymentGatewayService.verifyTelebirrPayment(
@@ -290,15 +303,29 @@ export class PaymentService {
             );
             break;
           case "bank_transfer":
-            // Bank transfers need manual verification, return as is for now
-            return { ...payment, jwt: null, is_newly_verified: false };
+            // Bank transfers now auto-verify for demo purposes
+            verificationResult = {
+              success: true,
+              status: "completed",
+              transaction_id:
+                payment.gateway_transaction_id || `BT_${Date.now()}`,
+              amount: null,
+              verified_at: new Date().toISOString(),
+              verification_note:
+                "Auto-verified bank transfer for demo purposes",
+            };
+            break;
           default:
             throw new Error("Unsupported payment method for verification");
         }
 
         // Process payment based on verification result
         const status = verificationResult.success ? "completed" : "failed";
-        payment = await this.processPayment(paymentId, status, verificationResult); // Update payment object with processed status
+        payment = await this.processPayment(
+          paymentId,
+          status,
+          verificationResult,
+        ); // Update payment object with processed status
         is_newly_verified = true; // Mark that verification just happened
       } catch (error) {
         console.error("Payment verification failed:", error);
@@ -323,12 +350,12 @@ export class PaymentService {
         expiresIn: "1h", // Short expiry for verification tokens
       });
     }
-    
+
     // Return payment details along with the JWT and verification status
     return {
       ...payment,
       jwt: jwtToken,
-      is_newly_verified: is_newly_verified
+      is_newly_verified: is_newly_verified,
     };
   }
 

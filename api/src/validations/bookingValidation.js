@@ -37,6 +37,9 @@ export const bookingQueryValidation = Joi.object({
   status: Joi.string()
     .valid("pending", "confirmed", "cancelled", "completed")
     .optional(),
+  payment_status: Joi.string()
+    .valid("pending", "completed", "failed", "refunded")
+    .optional(),
   sort_by: Joi.string()
     .valid("created_at", "booking_date", "total_amount")
     .default("created_at"),

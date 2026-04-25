@@ -192,4 +192,70 @@ export class BookingController {
       });
     }
   }
+
+  static async sendBookingConfirmation(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Get company ID for the authenticated user
+      const [companies] = await pool.execute(
+        "SELECT id FROM companies WHERE user_id = ?",
+        [req.user.id],
+      );
+
+      if (companies.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Company not found",
+        });
+      }
+
+      const companyId = companies[0].id;
+      const result = await BookingService.sendBookingConfirmation(
+        id,
+        companyId,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.booking,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  static async getBookingStats(req, res) {
+    try {
+      // Get company ID for the authenticated user
+      const [companies] = await pool.execute(
+        "SELECT id FROM companies WHERE user_id = ?",
+        [req.user.id],
+      );
+
+      if (companies.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Company not found",
+        });
+      }
+
+      const companyId = companies[0].id;
+      const stats = await BookingService.getBookingStats(companyId);
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }

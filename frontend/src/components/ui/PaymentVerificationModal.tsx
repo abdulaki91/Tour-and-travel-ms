@@ -44,7 +44,7 @@ const PaymentVerificationModal: React.FC<PaymentVerificationModalProps> = ({
         status: payment.status,
         message:
           payment.status === "completed"
-            ? "Payment verified successfully! Your booking is now confirmed."
+            ? "Payment automatically verified! Your booking is now confirmed."
             : payment.status === "failed"
               ? "Payment verification failed. Please try again or contact support."
               : "Payment is still pending. Please wait a moment and try again.",
@@ -161,12 +161,14 @@ const PaymentVerificationModal: React.FC<PaymentVerificationModalProps> = ({
         {!verificationResult && !verifyMutation.isPending && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
             <h3 className="font-semibold text-blue-900 mb-2">
-              Before verifying:
+              Auto-Verification Ready:
             </h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Ensure you have completed the payment process</li>
-              <li>• Wait at least 2-3 minutes after payment completion</li>
-              <li>• Have your transaction reference ready if needed</li>
+              <li>
+                • Click "Verify Payment" to automatically confirm your payment
+              </li>
+              <li>• The system will instantly verify your transaction</li>
+              <li>• Your booking will be confirmed immediately</li>
             </ul>
           </div>
         )}
@@ -204,8 +206,8 @@ const PaymentVerificationModal: React.FC<PaymentVerificationModalProps> = ({
         {/* Help Text */}
         {!verificationResult && (
           <p className="text-xs text-gray-500 text-center mt-4">
-            If verification fails repeatedly, please contact our support team
-            with your booking reference.
+            The system automatically verifies all payments for instant
+            confirmation.
           </p>
         )}
       </div>

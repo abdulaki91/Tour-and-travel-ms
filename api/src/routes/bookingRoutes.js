@@ -59,6 +59,13 @@ router.get(
   BookingController.getCompanyBookings,
 );
 
+router.get(
+  "/company/stats",
+  authenticate,
+  authorize("COMPANY"),
+  BookingController.getBookingStats,
+);
+
 router.patch(
   "/:id/status",
   authenticate,
@@ -66,6 +73,14 @@ router.patch(
   validateParams(idValidation),
   validate(statusUpdateValidation),
   BookingController.updateBookingStatus,
+);
+
+router.post(
+  "/:id/send-confirmation",
+  authenticate,
+  authorize("COMPANY"),
+  validateParams(idValidation),
+  BookingController.sendBookingConfirmation,
 );
 
 // Shared routes (user can view their bookings, company can view their package bookings)

@@ -15,6 +15,7 @@ const UserBookings: React.FC = () => {
     page: 1,
     limit: 10,
   });
+  const [showAll, setShowAll] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["user-bookings", filters],
@@ -34,6 +35,24 @@ const UserBookings: React.FC = () => {
       default:
         return "default";
     }
+  };
+
+  const handleViewAll = () => {
+    setShowAll(true);
+    setFilters((prev) => ({
+      ...prev,
+      limit: 1000, // Large number to get all bookings
+      page: 1,
+    }));
+  };
+
+  const handleViewPaginated = () => {
+    setShowAll(false);
+    setFilters((prev) => ({
+      ...prev,
+      limit: 10,
+      page: 1,
+    }));
   };
 
   const handleFilterChange = (key: keyof BookingFilters, value: any) => {
@@ -99,11 +118,34 @@ const UserBookings: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <BookingFiltersComponent
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        onClearFilters={handleClearFilters}
-      />
+      <div className="flex justify-between items-center mb-6">
+        <BookingFiltersComponent
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={handleClearFilters}
+        />
+
+        <div className="flex items-center space-x-4">
+          {!showAll && bookings.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleViewAll}
+              className="whitespace-nowrap"
+            >
+              View All ({pagination?.totalItems || 0})
+            </Button>
+          )}
+          {showAll && (
+            <Button
+              variant="outline"
+              onClick={handleViewPaginated}
+              className="whitespace-nowrap"
+            >
+              Show Paginated
+            </Button>
+          )}
+        </div>
+      </div>
 
       {bookings.length === 0 ? (
         <EmptyState
@@ -127,12 +169,18 @@ const UserBookings: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
+          {!showAll && pagination && pagination.totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
               onPageChange={handlePageChange}
             />
+          )}
+
+          {showAll && bookings.length > 10 && (
+            <div className="text-center text-gray-600 mt-6">
+              Showing all {bookings.length} bookings
+            </div>
           )}
         </>
       )}
