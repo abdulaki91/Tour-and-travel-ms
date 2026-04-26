@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   MagnifyingGlassIcon,
@@ -17,21 +17,55 @@ import Input from "../components/ui/Input";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import EmptyState from "../components/ui/EmptyState";
 import Rating from "../components/ui/Rating";
+import { getImageUrl } from "../utils/imageUrl";
 
 const PackagesPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const urlSearch = searchParams.get("search");
+
   const [filters, setFilters] = useState<PackageFilters>({
     page: 1,
     limit: 12,
     sort_by: "created_at",
     sort_order: "desc",
+    search: urlSearch || undefined,
   });
 
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
+  // Update filters when URL search parameter changes
+  useEffect(() => {
+    if (urlSearch) {
+      setFilters((prev) => ({
+        ...prev,
+        search: urlSearch,
+        page: 1,
+      }));
+    }
+  }, [urlSearch]);
+
+  // Debounce filters to prevent too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilters(filters);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [filters]);
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["packages", filters],
-    queryFn: () => packageService.getPackages(filters),
+    queryKey: ["packages", debouncedFilters],
+    queryFn: () => {
+      console.log("Fetching packages with filters:", debouncedFilters);
+      return packageService.getPackages(debouncedFilters);
+    },
+    onError: (error) => {
+      console.error("Package query error:", error);
+    },
   });
 
   const handleFilterChange = (key: keyof PackageFilters, value: any) => {
+    console.log("Filter change:", key, value);
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -39,9 +73,45 @@ const PackagesPage: React.FC = () => {
     }));
   };
 
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    refetch();
+    e.stopPropagation();
+    const value = e.target.value;
+    console.log("Search change:", value);
+    handleFilterChange("search", value);
+  };
+
+  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const value = e.target.value;
+    console.log("Location change:", value);
+    handleFilterChange("location", value);
+  };
+
+  const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const value = e.target.value;
+    console.log("Min price change:", value);
+    handleFilterChange("min_price", value ? Number(value) : undefined);
+  };
+
+  const handleMaxPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const value = e.target.value;
+    console.log("Max price change:", value);
+    handleFilterChange("max_price", value ? Number(value) : undefined);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Enter key prevented");
+      return false;
+    }
   };
 
   const clearFilters = () => {
@@ -156,19 +226,20 @@ const PackagesPage: React.FC = () => {
               </h2>
             </div>
 
-            <form onSubmit={handleSearch} className="space-y-6">
+            <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="form-group">
                   <label className="form-label">Search Tours</label>
                   <div className="relative">
                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
+                      type="search"
                       className="input pl-10"
                       placeholder="Search packages..."
                       value={filters.search || ""}
-                      onChange={(e) =>
-                        handleFilterChange("search", e.target.value)
-                      }
+                      onChange={handleSearchChange}
+                      onKeyDown={handleKeyPress}
+                      onKeyPress={handleKeyPress}
                     />
                   </div>
                 </div>
@@ -178,12 +249,13 @@ const PackagesPage: React.FC = () => {
                   <div className="relative">
                     <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
+                      type="text"
                       className="input pl-10"
                       placeholder="Where to go?"
                       value={filters.location || ""}
-                      onChange={(e) =>
-                        handleFilterChange("location", e.target.value)
-                      }
+                      onChange={handleLocationChange}
+                      onKeyDown={handleKeyPress}
+                      onKeyPress={handleKeyPress}
                     />
                   </div>
                 </div>
@@ -196,24 +268,18 @@ const PackagesPage: React.FC = () => {
                       type="number"
                       placeholder="Min"
                       value={filters.min_price || ""}
-                      onChange={(e) =>
-                        handleFilterChange(
-                          "min_price",
-                          e.target.value ? Number(e.target.value) : undefined,
-                        )
-                      }
+                      onChange={handleMinPriceChange}
+                      onKeyDown={handleKeyPress}
+                      onKeyPress={handleKeyPress}
                     />
                     <input
                       className="input"
                       type="number"
                       placeholder="Max"
                       value={filters.max_price || ""}
-                      onChange={(e) =>
-                        handleFilterChange(
-                          "max_price",
-                          e.target.value ? Number(e.target.value) : undefined,
-                        )
-                      }
+                      onChange={handleMaxPriceChange}
+                      onKeyDown={handleKeyPress}
+                      onKeyPress={handleKeyPress}
                     />
                   </div>
                 </div>
@@ -241,15 +307,11 @@ const PackagesPage: React.FC = () => {
               </div>
 
               <div className="flex gap-4">
-                <Button type="submit" variant="primary">
-                  <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-                  Search Tours
-                </Button>
                 <Button type="button" variant="outline" onClick={clearFilters}>
                   Clear Filters
                 </Button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
 
@@ -304,9 +366,21 @@ const PackagesPage: React.FC = () => {
                   <div className="relative h-64 bg-gradient-to-br from-slate-200 to-slate-300 rounded-t-2xl overflow-hidden">
                     {pkg.images && pkg.images.length > 0 ? (
                       <img
-                        src={pkg.images[0]}
+                        src={getImageUrl(pkg.images[0])}
                         alt={pkg.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        onError={(e) => {
+                          // Fallback to gradient if image fails to load
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.parentElement!.innerHTML = `
+                            <div class="w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-orange-500 flex items-center justify-center">
+                              <svg class="h-16 w-16 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </div>
+                          `;
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-orange-500 flex items-center justify-center">
@@ -360,7 +434,16 @@ const PackagesPage: React.FC = () => {
                       </div>
                       <div className="flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium border border-blue-100">
                         <CalendarIcon className="h-3 w-3 mr-1" />
-                        {new Date(pkg.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - {new Date(pkg.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(pkg.start_date).toLocaleDateString(
+                          undefined,
+                          { month: "short", day: "numeric" },
+                        )}{" "}
+                        -{" "}
+                        {new Date(pkg.end_date).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </div>
                       <div className="flex items-center">
                         <UserGroupIcon className="h-4 w-4 mr-1" />

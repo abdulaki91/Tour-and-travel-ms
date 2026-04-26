@@ -125,14 +125,15 @@ export class BookingService {
         p.start_date as package_start_date,
         p.end_date as package_end_date,
         c.company_name,
-        u.name,
-        u.email as user_email,
-        u.phone as user_phone,
+        u.name as customer_name,
+        u.email as customer_email,
+        u.phone as customer_phone,
         pay.id as payment_id,
         pay.status as payment_status,
         pay.payment_method,
         pay.amount as payment_amount,
-        pay.transaction_reference
+        pay.transaction_reference,
+        pay.payment_date
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN companies c ON p.company_id = c.id
@@ -189,12 +190,18 @@ export class BookingService {
         p.duration_days,
         p.images as package_images,
         c.company_name,
+        u.name as customer_name,
+        u.email as customer_email,
+        u.phone as customer_phone,
         pay.id as payment_id,
         pay.status as payment_status,
-        pay.payment_method
+        pay.payment_method,
+        pay.transaction_reference,
+        pay.payment_date
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN companies c ON p.company_id = c.id
+      JOIN users u ON b.user_id = u.id
       LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed', 'failed', 'refunded')
       WHERE ${whereClause}
       ORDER BY b.created_at DESC, b.id DESC
@@ -440,6 +447,131 @@ export class BookingService {
     } catch (error) {
       console.error("Error sending booking confirmation:", error);
       throw new Error("Failed to send booking confirmation");
+    }
+  }
+
+  static async refundBooking(id, companyId) {
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Get booking details with package and payment info
+      const [bookings] = await connection.execute(
+        `SELECT 
+          b.*,
+          p.title as package_title,
+          p.id as package_id,
+          u.name as customer_name,
+          u.email as customer_email,
+          pay.id as payment_id,
+          pay.status as payment_status,
+          pay.amount as payment_amount,
+          pay.payment_method
+        FROM bookings b
+        JOIN packages p ON b.package_id = p.id
+        JOIN users u ON b.user_id = u.id
+        LEFT JOIN payments pay ON b.id = pay.booking_id
+        WHERE b.id = ? AND p.company_id = ?`,
+        [id, companyId],
+      );
+
+      if (bookings.length === 0) {
+        throw new Error("Booking not found or unauthorized");
+      }
+
+      const booking = bookings[0];
+
+      // Validate refund eligibility
+      if (booking.status === "cancelled") {
+        throw new Error("Booking is already cancelled");
+      }
+
+      if (booking.status === "completed") {
+        throw new Error(
+          "Cannot refund completed bookings. Please contact support for assistance.",
+        );
+      }
+
+      // Check payment status - only refund if payment was completed
+      if (!booking.payment_id) {
+        throw new Error(
+          "No payment found for this booking. Use cancel instead of refund.",
+        );
+      }
+
+      if (booking.payment_status !== "completed") {
+        throw new Error(
+          `Cannot refund ${booking.payment_status} payment. Only completed payments can be refunded.`,
+        );
+      }
+
+      if (booking.payment_status === "refunded") {
+        throw new Error("Payment has already been refunded");
+      }
+
+      // Update booking status to cancelled
+      await connection.execute(
+        "UPDATE bookings SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [id],
+      );
+
+      // Update payment status to refunded
+      await connection.execute(
+        "UPDATE payments SET status = 'refunded', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [booking.payment_id],
+      );
+
+      // Restore available slots to the package
+      await connection.execute(
+        "UPDATE packages SET available_slots = available_slots + ? WHERE id = ?",
+        [booking.number_of_people, booking.package_id],
+      );
+
+      await connection.commit();
+
+      // Send refund notification
+      try {
+        await NotificationService.createNotification(booking.user_id, {
+          title: "Booking Refunded",
+          message: `Your booking for "${booking.package_title}" has been refunded. Amount: ${booking.payment_amount} ETB via ${booking.payment_method}. Refund will be processed within 3-5 business days.`,
+          type: "booking_refunded",
+          data: {
+            booking_id: booking.id,
+            booking_reference: booking.booking_reference,
+            refund_amount: booking.payment_amount,
+            payment_method: booking.payment_method,
+          },
+        });
+
+        // Emit real-time update
+        emitBookingUpdate(booking.user_id, {
+          type: "booking_refunded",
+          booking: booking,
+        });
+      } catch (notificationError) {
+        console.error("Error sending refund notification:", notificationError);
+      }
+
+      return {
+        success: true,
+        message: "Booking refunded successfully",
+        data: {
+          booking_id: booking.id,
+          booking_reference: booking.booking_reference,
+          refund_amount: booking.payment_amount,
+          payment_method: booking.payment_method,
+          slots_restored: booking.number_of_people,
+          original_status: booking.status,
+          new_status: "cancelled",
+          payment_status: "refunded",
+        },
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
   }
 

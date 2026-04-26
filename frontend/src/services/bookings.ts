@@ -91,4 +91,41 @@ export const bookingService = {
     const response = await api.post(`/bookings/${id}/send-confirmation`);
     return response.data;
   },
+
+  async refundBooking(id: number): Promise<ApiResponse<any>> {
+    const response = await api.post(`/bookings/${id}/refund`);
+    return response.data;
+  },
+
+  async updatePaymentStatus(
+    id: number,
+    status: string,
+  ): Promise<ApiResponse<any>> {
+    const response = await api.patch(`/bookings/${id}/payment-status`, {
+      status,
+    });
+    return response.data;
+  },
+
+  async verifyPayment(
+    id: number,
+    verificationData: any,
+  ): Promise<ApiResponse<any>> {
+    const response = await api.patch(
+      `/bookings/${id}/verify-payment`,
+      verificationData,
+    );
+    return response.data;
+  },
+
+  async rejectPayment(
+    id: number,
+    rejectionData: any,
+  ): Promise<ApiResponse<any>> {
+    const response = await api.patch(
+      `/bookings/${id}/reject-payment`,
+      rejectionData,
+    );
+    return response.data;
+  },
 };

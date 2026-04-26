@@ -87,7 +87,7 @@ export interface Booking extends BaseEntity {
 }
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
-export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type PaymentStatus = "pending" | "completed" | "failed" | "refunded";
 
 // Review Types
 export interface Review extends BaseEntity {
@@ -165,6 +165,7 @@ export interface PackageFormData {
   duration_days: number;
   price: number;
   max_people: number;
+  available_slots: number;
   start_date: string;
   end_date: string;
   includes?: string;
@@ -185,6 +186,14 @@ export interface PaymentFormData {
   card_expiry?: string;
   card_cvv?: string;
   card_name?: string;
+}
+
+// Pagination Types
+export interface PaginationInfo {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
 }
 
 // Filter Types
@@ -208,6 +217,8 @@ export interface BookingFilters {
   limit?: number;
   status?: BookingStatus;
   payment_status?: PaymentStatus;
+  sort_by?: "created_at" | "booking_date" | "total_amount";
+  sort_order?: "asc" | "desc";
   start_date?: string;
   end_date?: string;
 }

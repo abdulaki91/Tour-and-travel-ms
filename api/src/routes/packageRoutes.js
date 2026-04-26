@@ -23,6 +23,22 @@ const idValidation = Joi.object({
   id: Joi.number().integer().positive().required(),
 });
 
+// Middleware to parse JSON fields from FormData
+const parseFormDataJSON = (req, res, next) => {
+  if (req.body.itinerary && typeof req.body.itinerary === "string") {
+    try {
+      req.body.itinerary = JSON.parse(req.body.itinerary);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        error: "Invalid itinerary format",
+      });
+    }
+  }
+  next();
+};
+
 // Public routes
 router.get(
   "/",
@@ -42,6 +58,7 @@ router.post(
   authorize("COMPANY"),
   uploadPackageImages,
   handleUploadError,
+  parseFormDataJSON,
   validate(createPackageValidation),
   PackageController.createPackage,
 );
@@ -53,6 +70,7 @@ router.put(
   validateParams(idValidation),
   uploadPackageImages,
   handleUploadError,
+  parseFormDataJSON,
   validate(updatePackageValidation),
   PackageController.updatePackage,
 );

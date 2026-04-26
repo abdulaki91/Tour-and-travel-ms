@@ -83,6 +83,68 @@ router.post(
   BookingController.sendBookingConfirmation,
 );
 
+router.post(
+  "/:id/refund",
+  authenticate,
+  authorize("COMPANY"),
+  validateParams(idValidation),
+  BookingController.refundBooking,
+);
+
+router.patch(
+  "/:id/payment-status",
+  authenticate,
+  authorize("COMPANY"),
+  validateParams(idValidation),
+  validate(
+    Joi.object({
+      status: Joi.string()
+        .valid("pending", "completed", "failed", "refunded")
+        .required(),
+    }),
+  ),
+  BookingController.updatePaymentStatus,
+);
+
+// Enhanced payment verification routes
+router.patch(
+  "/:id/verify-payment",
+  authenticate,
+  authorize("COMPANY"),
+  validateParams(idValidation),
+  validate(
+    Joi.object({
+      status: Joi.string().valid("completed").required(),
+      verification_data: Joi.object({
+        transaction_id: Joi.string().required(),
+        amount: Joi.number().positive().required(),
+        payment_date: Joi.string().required(),
+        payment_method: Joi.string().required(),
+        description: Joi.string().allow("").optional(),
+        verified_by: Joi.string().default("company"),
+        verified_at: Joi.string().required(),
+      }).required(),
+    }),
+  ),
+  BookingController.verifyPayment,
+);
+
+router.patch(
+  "/:id/reject-payment",
+  authenticate,
+  authorize("COMPANY"),
+  validateParams(idValidation),
+  validate(
+    Joi.object({
+      status: Joi.string().valid("failed").default("failed"),
+      rejection_reason: Joi.string().required(),
+      rejected_by: Joi.string().default("company"),
+      rejected_at: Joi.string().required(),
+    }),
+  ),
+  BookingController.rejectPayment,
+);
+
 // Shared routes (user can view their bookings, company can view their package bookings)
 router.get(
   "/:id",

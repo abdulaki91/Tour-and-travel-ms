@@ -12,10 +12,11 @@ import {
   ExclamationTriangleIcon,
   PhoneIcon,
   EnvelopeIcon,
-  DocumentTextIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import { bookingService } from "../../services/bookings";
 import { paymentService } from "../../services/payments";
+import { ReceiptService } from "../../services/receiptService";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -23,6 +24,7 @@ import EmptyState from "../../components/ui/EmptyState";
 import PaymentVerificationModal from "../../components/ui/PaymentVerificationModal";
 import CancelBookingModal from "../../components/ui/CancelBookingModal";
 import Toast from "../../components/ui/Toast";
+import { toast } from "react-hot-toast";
 import type { BookingStatus } from "../../types";
 
 const BookingDetails: React.FC = () => {
@@ -30,6 +32,7 @@ const BookingDetails: React.FC = () => {
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
   const {
     data: bookingData,
@@ -105,6 +108,42 @@ const BookingDetails: React.FC = () => {
     latestPayment &&
     latestPayment.status === "pending" &&
     booking.status !== "cancelled";
+
+  const showReceiptButton =
+    latestPayment && latestPayment.status === "completed";
+
+  const handleDownloadReceipt = async () => {
+    try {
+      setIsDownloadingReceipt(true);
+      const receiptData = {
+        booking_reference: booking.booking_reference,
+        customer_name: booking.customer_name || "Customer",
+        customer_email: booking.customer_email || "",
+        customer_phone: booking.customer_phone || "",
+        package_title: booking.package_title,
+        package_location: booking.package_location,
+        booking_date: booking.booking_date,
+        number_of_people: booking.number_of_people,
+        total_amount: booking.total_amount,
+        payment_method: latestPayment?.payment_method || "verified",
+        payment_date:
+          latestPayment?.payment_date ||
+          latestPayment?.created_at ||
+          booking.created_at,
+        company_name: booking.company_name,
+        transaction_reference:
+          latestPayment?.transaction_reference || booking.booking_reference,
+      };
+
+      await ReceiptService.generateAndDownloadReceipt(receiptData);
+      toast.success("Receipt downloaded successfully!");
+    } catch (error) {
+      console.error("Receipt download failed:", error);
+      toast.error("Failed to download receipt. Please try again.");
+    } finally {
+      setIsDownloadingReceipt(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -376,10 +415,18 @@ const BookingDetails: React.FC = () => {
                 Email Support
               </Button>
 
-              <Button variant="outline" fullWidth className="justify-start">
-                <DocumentTextIcon className="h-4 w-4 mr-3" />
-                Download Receipt
-              </Button>
+              {showReceiptButton && (
+                <Button
+                  variant="outline"
+                  fullWidth
+                  className="justify-start border-green-300 text-green-700 hover:bg-green-50"
+                  onClick={handleDownloadReceipt}
+                  loading={isDownloadingReceipt}
+                >
+                  <DocumentArrowDownIcon className="h-4 w-4 mr-3" />
+                  Download Receipt
+                </Button>
+              )}
             </div>
 
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">

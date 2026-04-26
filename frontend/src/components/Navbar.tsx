@@ -7,12 +7,15 @@ import {
   ArrowRightOnRectangleIcon as LogOut,
   MapPinIcon as MapPin,
   ChevronDownIcon as ChevronDown,
+  MagnifyingGlassIcon as SearchIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -20,6 +23,15 @@ const Navbar: React.FC = () => {
     logout();
     navigate("/");
     setUserMenuOpen(false);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/packages?search=${encodeURIComponent(searchQuery)}`);
+      setShowSearch(false);
+      setSearchQuery("");
+    }
   };
 
   const getDashboardLink = () => {
@@ -55,7 +67,37 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-4">
+            {/* Search Bar */}
+            <div className="relative">
+              {showSearch ? (
+                <form onSubmit={handleSearch} className="flex items-center">
+                  <div className="relative">
+                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search packages..."
+                      className="pl-10 pr-4 py-2 w-64 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
+                      autoFocus
+                      onBlur={() => {
+                        if (!searchQuery) setShowSearch(false);
+                      }}
+                    />
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowSearch(true)}
+                  className="p-2 text-slate-500 rounded-xl hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                  aria-label="Search"
+                >
+                  <SearchIcon className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+
             <Link to="/" className="nav-link">
               Home
             </Link>
@@ -160,6 +202,20 @@ const Navbar: React.FC = () => {
       {isOpen && (
         <div className="md:hidden animate-slide-up">
           <div className="px-4 pt-2 pb-4 space-y-2 bg-white/95 backdrop-blur-md border-t border-white/20">
+            {/* Mobile Search */}
+            <form onSubmit={handleSearch} className="mb-4">
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search packages..."
+                  className="w-full pl-10 pr-4 py-3 bg-slate-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
+                />
+              </div>
+            </form>
+
             <Link
               to="/"
               className="block px-4 py-3 rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200 font-medium"

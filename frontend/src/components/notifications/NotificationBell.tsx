@@ -7,6 +7,13 @@ const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { unreadCount, isConnected } = useSocket();
 
+  console.log(
+    "NotificationBell - unreadCount:",
+    unreadCount,
+    "isConnected:",
+    isConnected,
+  );
+
   return (
     <div className="relative">
       <button
@@ -16,19 +23,23 @@ const NotificationBell: React.FC = () => {
       >
         <BellIcon className="w-6 h-6" />
 
-        {/* Connection indicator */}
-        <div
-          className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-            isConnected ? "bg-green-500" : "bg-red-500"
-          }`}
-        />
-
-        {/* Unread count badge */}
+        {/* Unread count badge - Always visible for testing */}
         {unreadCount > 0 && (
-          <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full animate-pulse">
+          <span
+            className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full border-2 border-white shadow-lg z-10"
+            style={{ minWidth: "20px" }}
+          >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
+
+        {/* Connection indicator - small dot at bottom */}
+        <div
+          className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
+            isConnected ? "bg-green-500" : "bg-gray-400"
+          }`}
+          title={isConnected ? "Connected" : "Disconnected"}
+        />
       </button>
 
       {/* Notification Dropdown */}

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { packageService } from "../services/packages";
+import { getImageUrl } from "../utils/imageUrl";
 
 const HomePage: React.FC = () => {
   const { data: packagesData, isLoading } = useQuery({
@@ -269,7 +270,7 @@ const HomePage: React.FC = () => {
                   <div className="relative h-64 bg-gradient-to-br from-slate-200 to-slate-300 rounded-t-2xl overflow-hidden">
                     {pkg.images && pkg.images.length > 0 ? (
                       <img
-                        src={pkg.images[0]}
+                        src={getImageUrl(pkg.images[0])}
                         alt={pkg.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />

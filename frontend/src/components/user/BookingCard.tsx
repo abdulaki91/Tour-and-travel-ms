@@ -6,10 +6,13 @@ import {
   UserGroupIcon,
   ClockIcon,
   CheckBadgeIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import PaymentVerificationModal from "../ui/PaymentVerificationModal";
+import { ReceiptService } from "../../services/receiptService";
+import { toast } from "react-hot-toast";
 import type { BookingStatus } from "../../types";
 
 interface Booking {
@@ -30,6 +33,11 @@ interface Booking {
   // Add payment information for verification
   payment_id?: number;
   payment_method?: string;
+  transaction_reference?: string;
+  payment_date?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
 }
 
 interface BookingCardProps {
@@ -44,11 +52,44 @@ const BookingCard: React.FC<BookingCardProps> = ({
   getStatusVariant,
 }) => {
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
   const showVerifyButton =
     booking.payment_status === "pending" &&
     booking.payment_id &&
     booking.status !== "cancelled";
+
+  const showReceiptButton = booking.payment_status === "completed";
+
+  const handleDownloadReceipt = async () => {
+    try {
+      setIsDownloadingReceipt(true);
+      const receiptData = {
+        booking_reference: booking.booking_reference,
+        customer_name: booking.customer_name || "Customer",
+        customer_email: booking.customer_email || "",
+        customer_phone: booking.customer_phone || "",
+        package_title: booking.package_title,
+        package_location: booking.package_location,
+        booking_date: booking.booking_date,
+        number_of_people: booking.number_of_people,
+        total_amount: booking.total_amount,
+        payment_method: booking.payment_method || "verified",
+        payment_date: booking.payment_date || booking.created_at,
+        company_name: booking.company_name,
+        transaction_reference:
+          booking.transaction_reference || booking.booking_reference,
+      };
+
+      await ReceiptService.generateAndDownloadReceipt(receiptData);
+      toast.success("Receipt downloaded successfully!");
+    } catch (error) {
+      console.error("Receipt download failed:", error);
+      toast.error("Failed to download receipt. Please try again.");
+    } finally {
+      setIsDownloadingReceipt(false);
+    }
+  };
 
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group hover:scale-[1.02]">
@@ -123,12 +164,26 @@ const BookingCard: React.FC<BookingCardProps> = ({
                 </Button>
               </Link>
 
-              {showVerifyButton && (
+              {showReceiptButton && (
                 <Button
                   size="lg"
                   variant="outline"
                   fullWidth
                   className="shadow-md hover:shadow-lg border-green-300 text-green-700 hover:bg-green-50"
+                  onClick={handleDownloadReceipt}
+                  loading={isDownloadingReceipt}
+                >
+                  <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+                  Download Receipt
+                </Button>
+              )}
+
+              {showVerifyButton && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  fullWidth
+                  className="shadow-md hover:shadow-lg border-blue-300 text-blue-700 hover:bg-blue-50"
                   onClick={() => setIsVerificationModalOpen(true)}
                 >
                   <CheckBadgeIcon className="h-5 w-5 mr-2" />

@@ -10,6 +10,7 @@ import { packageService } from "../../services/packages";
 import { type PackageFormData } from "../../types";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import { getErrorMessage } from "../../utils/errorHandler";
 
 const itineraryItemSchema = z.object({
   day: z.number().min(1),
@@ -19,12 +20,13 @@ const itineraryItemSchema = z.object({
 });
 
 const packageSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  location: z.string().min(1, "Location is required"),
+  title: z.string().min(5, "Title must be at least 5 characters"),
+  description: z.string().min(20, "Description must be at least 20 characters"),
+  location: z.string().min(2, "Location must be at least 2 characters"),
   duration_days: z.number().min(1, "Duration must be at least 1 day"),
   price: z.number().min(1, "Price must be greater than 0"),
   max_people: z.number().min(1, "Max people must be at least 1"),
+  available_slots: z.number().min(0, "Available slots cannot be negative"),
   start_date: z.string().min(1, "Start date is required"),
   end_date: z.string().min(1, "End date is required"),
   includes: z.string().optional(),
@@ -68,7 +70,8 @@ const CreatePackage: React.FC = () => {
       }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create package");
+      const errorMessage = getErrorMessage(error, "Failed to create package");
+      toast.error(errorMessage);
     },
   });
 
@@ -162,6 +165,15 @@ const CreatePackage: React.FC = () => {
               {...register("max_people", { valueAsNumber: true })}
               error={errors.max_people?.message}
               min={1}
+            />
+
+            <Input
+              label="Available Slots"
+              type="number"
+              {...register("available_slots", { valueAsNumber: true })}
+              error={errors.available_slots?.message}
+              min={0}
+              placeholder="Number of available slots"
             />
 
             <Input

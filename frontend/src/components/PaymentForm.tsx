@@ -14,6 +14,7 @@ import Input from "./ui/Input";
 import Modal from "./ui/Modal";
 import LoadingSpinner from "./ui/LoadingSpinner";
 import { toast } from "react-hot-toast";
+import { getErrorMessage } from "../utils/errorHandler";
 
 interface PaymentFormProps {
   bookingId: number;
@@ -81,9 +82,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       toast.success("Payment instructions generated!");
     },
     onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to initiate payment",
-      );
+      const errorMessage = getErrorMessage(error, "Failed to initiate payment");
+      toast.error(errorMessage);
     },
   });
 
@@ -98,9 +98,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     },
     onError: (error: any) => {
       setPaymentStatus("idle");
-      toast.error(
-        error.response?.data?.message || "Payment verification failed",
+      const errorMessage = getErrorMessage(
+        error,
+        "Payment verification failed",
       );
+      toast.error(errorMessage);
     },
   });
 
@@ -116,9 +118,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     },
     onError: (error: any) => {
       setPaymentStatus("idle");
-      toast.error(
-        error.response?.data?.message || "Failed to complete demo payment",
+      const errorMessage = getErrorMessage(
+        error,
+        "Failed to complete demo payment",
       );
+      toast.error(errorMessage);
     },
   });
 

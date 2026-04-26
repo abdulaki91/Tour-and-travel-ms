@@ -11,12 +11,16 @@ import {
   CalendarDaysIcon,
   PhoneIcon,
   MapPinIcon,
+  DocumentArrowDownIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import { bookingService } from "../../services/bookings";
+import { ReceiptService } from "../../services/receiptService";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import Modal from "../ui/Modal";
 import LoadingSpinner from "../ui/LoadingSpinner";
+import PaymentVerificationModal from "./PaymentVerificationModal";
 import { toast } from "react-hot-toast";
 
 interface BookingManagementProps {
@@ -31,6 +35,9 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showPaymentVerificationModal, setShowPaymentVerificationModal] =
+    useState(false);
   const queryClient = useQueryClient();
 
   const updateStatusMutation = useMutation({
@@ -58,6 +65,59 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
     onError: (error: any) => {
       toast.error(
         error.response?.data?.message || "Failed to send confirmation",
+      );
+    },
+  });
+
+  const refundMutation = useMutation({
+    mutationFn: (id: number) => bookingService.refundBooking(id),
+    onSuccess: (response) => {
+      toast.success(
+        `Booking refunded successfully! ${response.data.slots_restored} slots restored.`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["company-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["company-booking-stats"] });
+      onUpdate?.();
+      setShowRefundModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to process refund");
+    },
+  });
+
+  const updatePaymentMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      bookingService.updatePaymentStatus(id, status),
+    onSuccess: async (response) => {
+      const message = response.data.booking_status
+        ? `Payment marked as ${response.data.payment_status}! Booking is now ${response.data.booking_status}.`
+        : `Payment marked as ${response.data.payment_status}!`;
+
+      toast.success(message);
+
+      // Generate and download receipt if payment was completed
+      if (
+        response.data.payment_status === "completed" &&
+        response.data.receipt_data
+      ) {
+        try {
+          await ReceiptService.generateAndDownloadReceipt(
+            response.data.receipt_data,
+          );
+          toast.success("Receipt downloaded successfully!");
+        } catch (error) {
+          console.error("Receipt generation failed:", error);
+          toast.error("Payment updated but receipt generation failed");
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["company-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["company-booking-stats"] });
+      onUpdate?.();
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to update payment status",
       );
     },
   });
@@ -124,6 +184,40 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
 
   const handleSendConfirmation = () => {
     sendConfirmationMutation.mutate(booking.id);
+  };
+
+  const handleRefundBooking = () => {
+    setShowRefundModal(true);
+  };
+
+  const handleMarkPaid = () => {
+    updatePaymentMutation.mutate({ id: booking.id, status: "completed" });
+  };
+
+  const handleDownloadReceipt = async () => {
+    try {
+      const receiptData = {
+        booking_reference: booking.booking_reference,
+        customer_name: booking.customer_name,
+        customer_email: booking.customer_email,
+        customer_phone: booking.customer_phone,
+        package_title: booking.package_title,
+        package_location: booking.package_location,
+        booking_date: booking.booking_date,
+        number_of_people: booking.number_of_people,
+        total_amount: booking.total_amount,
+        payment_method: booking.payment_method || "manual_approval",
+        payment_date: booking.updated_at,
+        company_name: booking.company_name || "East Hararghe Tours",
+        transaction_reference: booking.transaction_reference,
+      };
+
+      await ReceiptService.generateAndDownloadReceipt(receiptData);
+      toast.success("Receipt downloaded successfully!");
+    } catch (error) {
+      console.error("Receipt download failed:", error);
+      toast.error("Failed to download receipt");
+    }
   };
 
   return (
@@ -211,67 +305,242 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-          <div className="flex items-center space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowDetailsModal(true)}
-              className="flex items-center space-x-1"
-            >
-              <EyeIcon className="h-4 w-4" />
-              <span>Details</span>
-            </Button>
-
-            {booking.status === "confirmed" && (
+        <div className="pt-4 border-t border-gray-200 space-y-3">
+          {/* Primary Actions Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
               <Button
                 size="sm"
                 variant="outline"
-                onClick={handleSendConfirmation}
-                loading={sendConfirmationMutation.isPending}
+                onClick={() => setShowDetailsModal(true)}
                 className="flex items-center space-x-1"
               >
-                <EnvelopeIcon className="h-4 w-4" />
-                <span>Send Confirmation</span>
+                <EyeIcon className="h-4 w-4" />
+                <span>View Details</span>
               </Button>
-            )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                Booking Actions:
+              </span>
+              {/* Show different actions based on booking status */}
+              {booking.status === "pending" && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowConfirmModal(true)}
+                    className="flex items-center space-x-1"
+                  >
+                    <CheckCircleIcon className="h-4 w-4" />
+                    <span>Confirm</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowCancelModal(true)}
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-700"
+                  >
+                    <XCircleIcon className="h-4 w-4" />
+                    <span>Cancel</span>
+                  </Button>
+                </>
+              )}
+
+              {booking.status === "confirmed" && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSendConfirmation}
+                    loading={sendConfirmationMutation.isPending}
+                    className="flex items-center space-x-1"
+                  >
+                    <EnvelopeIcon className="h-4 w-4" />
+                    <span>Send Confirmation</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCompleteBooking}
+                    loading={updateStatusMutation.isPending}
+                    className="flex items-center space-x-1 text-green-600 hover:text-green-700"
+                  >
+                    <CheckCircleIcon className="h-4 w-4" />
+                    <span>Mark Complete</span>
+                  </Button>
+                </>
+              )}
+
+              {booking.status === "cancelled" && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      updateStatusMutation.mutate({
+                        id: booking.id,
+                        status: "pending",
+                      })
+                    }
+                    loading={updateStatusMutation.isPending}
+                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                  >
+                    <ClockIcon className="h-4 w-4" />
+                    <span>Reactivate</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSendConfirmation}
+                    loading={sendConfirmationMutation.isPending}
+                    className="flex items-center space-x-1"
+                  >
+                    <EnvelopeIcon className="h-4 w-4" />
+                    <span>Send Update</span>
+                  </Button>
+                </>
+              )}
+
+              {booking.status === "completed" && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSendConfirmation}
+                    loading={sendConfirmationMutation.isPending}
+                    className="flex items-center space-x-1"
+                  >
+                    <EnvelopeIcon className="h-4 w-4" />
+                    <span>Send Receipt</span>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {booking.status === "pending" && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={() => setShowConfirmModal(true)}
-                  className="flex items-center space-x-1"
-                >
-                  <CheckCircleIcon className="h-4 w-4" />
-                  <span>Confirm</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowCancelModal(true)}
-                  className="flex items-center space-x-1 text-red-600 hover:text-red-700"
-                >
-                  <XCircleIcon className="h-4 w-4" />
-                  <span>Cancel</span>
-                </Button>
-              </>
-            )}
+          {/* Payment Management Row - Always Visible */}
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <CreditCardIcon className="h-5 w-5 text-blue-600" />
+                <div>
+                  <span className="text-sm font-semibold text-gray-800">
+                    Payment Management
+                  </span>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-xs text-gray-600">Status:</span>
+                    <Badge
+                      variant={
+                        getPaymentStatusColor(
+                          booking.payment_status || "pending",
+                        ) as any
+                      }
+                      className="text-xs"
+                    >
+                      {(booking.payment_status || "pending").toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
 
-            {booking.status === "confirmed" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCompleteBooking}
-                loading={updateStatusMutation.isPending}
-                className="flex items-center space-x-1 text-green-600 hover:text-green-700"
-              >
-                <CheckCircleIcon className="h-4 w-4" />
-                <span>Mark Complete</span>
-              </Button>
-            )}
+              <div className="flex items-center space-x-2">
+                {/* Payment Verification Button for pending payments */}
+                {booking.payment_status === "pending" && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowPaymentVerificationModal(true)}
+                    className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <ShieldCheckIcon className="h-4 w-4" />
+                    <span>Verify Payment</span>
+                  </Button>
+                )}
+
+                {/* Quick Mark Paid for pending payments */}
+                {booking.payment_status === "pending" && (
+                  <Button
+                    size="sm"
+                    onClick={handleMarkPaid}
+                    loading={updatePaymentMutation.isPending}
+                    className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircleIcon className="h-4 w-4" />
+                    <span>Quick Confirm</span>
+                  </Button>
+                )}
+
+                {/* Show Download Receipt for completed payments */}
+                {booking.payment_status === "completed" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDownloadReceipt}
+                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 border-blue-300"
+                  >
+                    <DocumentArrowDownIcon className="h-4 w-4" />
+                    <span>Download Receipt</span>
+                  </Button>
+                )}
+
+                {/* Only show Process Refund for completed payments and non-completed bookings */}
+                {booking.payment_status === "completed" &&
+                  booking.status !== "completed" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRefundBooking}
+                      loading={refundMutation.isPending}
+                      className="flex items-center space-x-1 text-orange-600 hover:text-orange-700 border-orange-300"
+                    >
+                      <XCircleIcon className="h-4 w-4" />
+                      <span>Process Refund</span>
+                    </Button>
+                  )}
+
+                {/* Show appropriate message for non-refundable payments */}
+                {booking.payment_status === "failed" && (
+                  <span className="text-sm text-gray-500 italic px-3 py-2 bg-gray-100 rounded-lg">
+                    No refund needed (payment failed)
+                  </span>
+                )}
+
+                {booking.payment_status === "refunded" && (
+                  <span className="text-sm text-green-600 font-medium px-3 py-2 bg-green-100 rounded-lg">
+                    ✓ Already refunded
+                  </span>
+                )}
+
+                {!booking.payment_status && (
+                  <span className="text-sm text-gray-500 italic px-3 py-2 bg-gray-100 rounded-lg">
+                    No payment to refund
+                  </span>
+                )}
+
+                {booking.status === "completed" &&
+                  booking.payment_status === "completed" && (
+                    <span className="text-sm text-blue-600 font-medium px-3 py-2 bg-blue-100 rounded-lg">
+                      Trip completed - Contact support for refunds
+                    </span>
+                  )}
+
+                {/* Payment reminder for non-refunded payments */}
+                {booking.payment_status !== "refunded" &&
+                  booking.payment_status !== "completed" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        toast.success("Payment reminder sent to customer");
+                      }}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 border-blue-300"
+                    >
+                      <EnvelopeIcon className="h-4 w-4" />
+                      <span>Send Payment Reminder</span>
+                    </Button>
+                  )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -496,6 +765,125 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* Refund Booking Modal */}
+      <Modal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        title="Process Refund"
+      >
+        <div className="space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <div className="flex items-center space-x-2">
+              <XCircleIcon className="h-5 w-5 text-orange-600" />
+              <p className="text-orange-800 font-medium">
+                Process refund for this booking?
+              </p>
+            </div>
+
+            {/* Refund Eligibility Check */}
+            {booking.payment_status !== "completed" && (
+              <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm font-medium">
+                  ⚠️ Cannot process refund
+                </p>
+                <p className="text-red-700 text-sm mt-1">
+                  Payment status is "{booking.payment_status}". Only completed
+                  payments can be refunded.
+                </p>
+              </div>
+            )}
+
+            {booking.status === "completed" && (
+              <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm font-medium">
+                  ⚠️ Cannot process refund
+                </p>
+                <p className="text-red-700 text-sm mt-1">
+                  Booking is completed (trip has finished). Completed bookings
+                  cannot be refunded through this system.
+                </p>
+              </div>
+            )}
+
+            {booking.payment_status === "completed" &&
+              booking.status !== "completed" && (
+                <>
+                  <p className="text-orange-700 text-sm mt-2">
+                    <strong>Refund Process:</strong> This will cancel the
+                    booking and refund the payment.
+                  </p>
+                  <ul className="text-orange-700 text-sm mt-2 ml-4 list-disc">
+                    <li>Cancel the booking for {booking.customer_name}</li>
+                    <li>
+                      Change booking status from "{booking.status}" to
+                      "cancelled"
+                    </li>
+                    <li>Mark payment as "refunded"</li>
+                    <li>
+                      Restore {booking.number_of_people} available slots to the
+                      package
+                    </li>
+                    <li>Send refund notification to customer</li>
+                  </ul>
+                  <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                    <p className="text-orange-800 text-sm font-medium">
+                      Refund Details:
+                    </p>
+                    <p className="text-orange-700 text-sm">
+                      Amount: {formatCurrency(booking.total_amount)}
+                    </p>
+                    <p className="text-orange-700 text-sm">
+                      Method:{" "}
+                      {booking.payment_method
+                        ? booking.payment_method.replace("_", " ")
+                        : "Manual approval"}
+                    </p>
+                    <p className="text-orange-700 text-sm">
+                      Processing time: 3-5 business days
+                    </p>
+                  </div>
+                </>
+              )}
+          </div>
+
+          <div className="flex space-x-4">
+            {booking.payment_status === "completed" &&
+            booking.status !== "completed" ? (
+              <Button
+                onClick={() => refundMutation.mutate(booking.id)}
+                loading={refundMutation.isPending}
+                variant="outline"
+                className="flex-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+              >
+                Yes, Process Refund
+              </Button>
+            ) : (
+              <Button
+                disabled
+                variant="outline"
+                className="flex-1 text-gray-400 border-gray-300 cursor-not-allowed"
+              >
+                Cannot Process Refund
+              </Button>
+            )}
+            <Button
+              onClick={() => setShowRefundModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Payment Verification Modal */}
+      <PaymentVerificationModal
+        isOpen={showPaymentVerificationModal}
+        onClose={() => setShowPaymentVerificationModal(false)}
+        booking={booking}
+        onUpdate={onUpdate}
+      />
     </>
   );
 };

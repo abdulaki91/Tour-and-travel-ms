@@ -49,6 +49,38 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { user, token } = useAuth();
 
+  const fetchInitialNotifications = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/notifications?limit=10`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+
+        // Calculate unread count from fetched notifications
+        const unread = (data.notifications || []).filter(
+          (n: Notification) => !n.is_read,
+        ).length;
+        setUnreadCount(unread);
+        console.log(
+          "📊 Initial notifications loaded:",
+          data.notifications?.length,
+          "Unread:",
+          unread,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to fetch initial notifications:", error);
+    }
+  }, [token]);
+
   const markNotificationAsRead = useCallback(
     (notificationId: number) => {
       if (socket) {
@@ -103,8 +135,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         console.log("🔌 Socket connected successfully");
         setIsConnected(true);
 
-        // Get initial unread count
+        // Get initial unread count and notifications
         newSocket.emit("get_unread_count");
+
+        // Fetch initial notifications to populate the list
+        fetchInitialNotifications();
       });
 
       newSocket.on("disconnect", () => {

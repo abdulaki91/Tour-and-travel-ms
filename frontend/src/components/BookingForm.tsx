@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useMutation } from "@tantml:invoke>
+<invoke name="strReplace">
+<parameter name="newStr">import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import type { Package } from "../types";
@@ -10,6 +16,7 @@ import type { CreateBookingData } from "../services/bookings";
 import Button from "./ui/Button";
 import Input from "./ui/Input";
 import PaymentForm from "./PaymentForm";
+import { getErrorMessage } from "../utils/errorHandler";
 
 const bookingSchema = z.object({
   number_of_people: z
@@ -62,7 +69,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
       }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create booking");
+      const errorMessage = getErrorMessage(error, "Failed to create booking");
+      toast.error(errorMessage);
     },
   });
 

@@ -22,6 +22,7 @@ import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Rating from "../components/ui/Rating";
 import Modal from "../components/ui/Modal";
 import BookingForm from "../components/BookingForm";
+import { getImageUrl } from "../utils/imageUrl";
 
 const PackageDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -83,7 +84,7 @@ const PackageDetailsPage: React.FC = () => {
 
   const pkg = packageData.data;
   const reviews = reviewsData?.data.items || [];
-  
+
   const isExpired = new Date(pkg.end_date) < new Date();
 
   const handleBookNow = () => {
@@ -102,7 +103,7 @@ const PackageDetailsPage: React.FC = () => {
         {pkg.images && pkg.images.length > 0 ? (
           <div className="relative h-96 md:h-[500px] overflow-hidden">
             <img
-              src={pkg.images[selectedImageIndex]}
+              src={getImageUrl(pkg.images[selectedImageIndex])}
               alt={pkg.title}
               className="w-full h-full object-cover"
             />
@@ -192,7 +193,7 @@ const PackageDetailsPage: React.FC = () => {
                   onClick={() => setSelectedImageIndex(index)}
                 >
                   <img
-                    src={image}
+                    src={getImageUrl(image)}
                     alt={`${pkg.title} ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -484,7 +485,8 @@ const PackageDetailsPage: React.FC = () => {
                       Tour Expired
                     </div>
                     <p className="text-sm text-red-600">
-                      This tour's availability has ended. Please check our other upcoming tours.
+                      This tour's availability has ended. Please check our other
+                      upcoming tours.
                     </p>
                   </div>
                 )}
@@ -494,11 +496,15 @@ const PackageDetailsPage: React.FC = () => {
                   size="lg"
                   onClick={handleBookNow}
                   disabled={pkg.available_slots === 0 || isExpired}
-                  variant={pkg.available_slots === 0 || isExpired ? "outline" : "primary"}
+                  variant={
+                    pkg.available_slots === 0 || isExpired
+                      ? "outline"
+                      : "primary"
+                  }
                   className="mb-6"
                 >
-                  {isExpired 
-                    ? "Tour Expired" 
+                  {isExpired
+                    ? "Tour Expired"
                     : pkg.available_slots === 0
                       ? "Fully Booked"
                       : "Book This Experience"}

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PencilIcon, TrashIcon, EyeIcon } from "@heroicons/react/24/outline";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
+import { getImageUrl } from "../../utils/imageUrl";
 
 interface Package {
   id: number;
@@ -39,7 +40,7 @@ const PackageTableRow: React.FC<PackageTableRowProps> = ({
             {pkg.images && pkg.images.length > 0 ? (
               <img
                 className="h-14 w-14 rounded-xl object-cover shadow-md"
-                src={pkg.images[0]}
+                src={getImageUrl(pkg.images[0])}
                 alt={pkg.title}
               />
             ) : (
