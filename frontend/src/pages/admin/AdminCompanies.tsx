@@ -12,6 +12,7 @@ import {
   TrashIcon,
   PencilIcon,
   KeyIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { adminService } from "../../services/admin";
 import api from "../../services/api";
@@ -53,6 +54,10 @@ const AdminCompanies: React.FC = () => {
   );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignUserModal, setShowAssignUserModal] = useState(false);
+  const [showReassignModal, setShowReassignModal] = useState<Company | null>(
+    null,
+  );
+  const [showCreateOrphanModal, setShowCreateOrphanModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] =
     useState<Company | null>(null);
   const [showEditModal, setShowEditModal] = useState<Company | null>(null);
@@ -141,12 +146,12 @@ const AdminCompanies: React.FC = () => {
 
   const assignUserMutation = useMutation({
     mutationFn: ({
+      companyId,
       userId,
-      companyData,
     }: {
+      companyId: number;
       userId: number;
-      companyData: any;
-    }) => adminService.assignUserToCompany(userId, companyData),
+    }) => adminService.reassignCompany(companyId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -192,6 +197,42 @@ const AdminCompanies: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to reset password");
+    },
+  });
+
+  const reassignCompanyMutation = useMutation({
+    mutationFn: ({
+      companyId,
+      userId,
+    }: {
+      companyId: number;
+      userId: number;
+    }) => adminService.reassignCompany(companyId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Company reassigned successfully");
+      setShowReassignModal(null);
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to reassign company",
+      );
+    },
+  });
+
+  const createOrphanMutation = useMutation({
+    mutationFn: (companyData: any) =>
+      adminService.createOrphanCompany(companyData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success("Orphan company created successfully");
+      setShowCreateOrphanModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to create orphan company",
+      );
     },
   });
 
@@ -265,7 +306,7 @@ const AdminCompanies: React.FC = () => {
               className="bg-white text-primary-600 hover:bg-gray-50 flex items-center gap-2"
             >
               <BuildingOfficeIcon className="h-5 w-5" />
-              Assign User
+              Assign Existing
             </Button>
             <Button
               onClick={() => setShowCreateModal(true)}
@@ -273,6 +314,13 @@ const AdminCompanies: React.FC = () => {
             >
               <BuildingOfficeIcon className="h-5 w-5" />
               Create New
+            </Button>
+            <Button
+              onClick={() => setShowCreateOrphanModal(true)}
+              className="bg-white text-secondary-600 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <BuildingOfficeIcon className="h-5 w-5" />
+              Create Orphan
             </Button>
           </div>
         </div>
@@ -532,6 +580,13 @@ const AdminCompanies: React.FC = () => {
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => setShowReassignModal(company)}
+                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        title="Reassign owner"
+                      >
+                        <BuildingOfficeIcon className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => setShowResetPasswordModal(company)}
                         className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                         title="Reset password"
@@ -761,8 +816,8 @@ const AdminCompanies: React.FC = () => {
       <AssignUserModal
         isOpen={showAssignUserModal}
         onClose={() => setShowAssignUserModal(false)}
-        onSubmit={(userId, companyData) =>
-          assignUserMutation.mutate({ userId, companyData })
+        onSubmit={(companyId, userId) =>
+          assignUserMutation.mutate({ companyId, userId })
         }
         isLoading={assignUserMutation.isPending}
       />
@@ -814,6 +869,30 @@ const AdminCompanies: React.FC = () => {
           isLoading={verifyWithReasonMutation.isPending}
         />
       )}
+
+      {/* Reassign Company Modal */}
+      {showReassignModal && (
+        <ReassignCompanyModal
+          isOpen={true}
+          company={showReassignModal}
+          onClose={() => setShowReassignModal(null)}
+          onSubmit={(userId) =>
+            reassignCompanyMutation.mutate({
+              companyId: showReassignModal.id,
+              userId,
+            })
+          }
+          isLoading={reassignCompanyMutation.isPending}
+        />
+      )}
+
+      {/* Create Orphan Company Modal */}
+      <CreateOrphanModal
+        isOpen={showCreateOrphanModal}
+        onClose={() => setShowCreateOrphanModal(false)}
+        onSubmit={(companyData) => createOrphanMutation.mutate(companyData)}
+        isLoading={createOrphanMutation.isPending}
+      />
     </div>
   );
 };
@@ -1000,7 +1079,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({
 interface AssignUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userId: number, companyData: any) => void;
+  onSubmit: (companyId: number, userId: number) => void;
   isLoading: boolean;
 }
 
@@ -1011,14 +1090,9 @@ const AssignUserModal: React.FC<AssignUserModalProps> = ({
   isLoading,
 }) => {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    company_name: "",
-    business_license: "",
-    address: "",
-    description: "",
-    website: "",
-    is_verified: false,
-  });
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(
+    null,
+  );
 
   // Fetch users without company
   const { data: usersData, isLoading: loadingUsers } = useQuery({
@@ -1027,7 +1101,15 @@ const AssignUserModal: React.FC<AssignUserModalProps> = ({
     enabled: isOpen,
   });
 
+  // Fetch all companies for assignment
+  const { data: companiesData, isLoading: loadingCompanies } = useQuery({
+    queryKey: ["companies-for-assignment"],
+    queryFn: () => adminService.getAllCompaniesForAssignment(),
+    enabled: isOpen,
+  });
+
   const users = usersData?.data || [];
+  const companies = companiesData?.data || [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1035,182 +1117,157 @@ const AssignUserModal: React.FC<AssignUserModalProps> = ({
       toast.error("Please select a user");
       return;
     }
-    onSubmit(selectedUserId, formData);
+    if (!selectedCompanyId) {
+      toast.error("Please select a company");
+      return;
+    }
+    onSubmit(selectedCompanyId, selectedUserId);
   };
 
   const handleClose = () => {
     setSelectedUserId(null);
-    setFormData({
-      company_name: "",
-      business_license: "",
-      address: "",
-      description: "",
-      website: "",
-      is_verified: false,
-    });
+    setSelectedCompanyId(null);
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Assign User to Company">
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 max-h-96 overflow-y-auto"
-      >
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> This will assign an existing user to a new
-            company and change their role to COMPANY.
+    <Modal isOpen={isOpen} onClose={handleClose} title="">
+      <div className="p-6">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+            <BuildingOfficeIcon className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Assign User to Company
+          </h2>
+          <p className="text-gray-600">
+            Connect an existing user with an existing company
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select User *
-          </label>
-          {loadingUsers ? (
-            <div className="text-center py-4">
-              <LoadingSpinner size="sm" />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Info Banner */}
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircleIcon className="h-6 w-6 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-indigo-900">
+                <p className="font-semibold mb-1">Ownership Transfer</p>
+                <p className="text-indigo-700">
+                  The selected user will become the company owner. If the
+                  company has a current owner, their role will be changed back
+                  to USER.
+                </p>
+              </div>
             </div>
-          ) : users.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">
-              No users available. All users are already assigned to companies.
-            </div>
-          ) : (
-            <select
-              value={selectedUserId || ""}
-              onChange={(e) => setSelectedUserId(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
+          </div>
+
+          {/* Company Selection */}
+          <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-indigo-300 transition-all">
+            <label className="block text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <div className="w-6 h-6 bg-indigo-500 rounded-lg flex items-center justify-center">
+                <span className="text-white text-xs font-bold">1</span>
+              </div>
+              Select Company *
+            </label>
+            {loadingCompanies ? (
+              <div className="text-center py-8">
+                <LoadingSpinner size="sm" />
+                <p className="text-sm text-gray-500 mt-2">
+                  Loading companies...
+                </p>
+              </div>
+            ) : companies.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <BuildingOfficeIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">No companies available</p>
+              </div>
+            ) : (
+              <select
+                value={selectedCompanyId || ""}
+                onChange={(e) => setSelectedCompanyId(Number(e.target.value))}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-900 font-medium"
+                required
+              >
+                <option value="">-- Choose a company --</option>
+                {companies.map((company: any) => (
+                  <option key={company.id} value={company.id}>
+                    {company.company_name}
+                    {company.current_owner
+                      ? ` (Owner: ${company.current_owner})`
+                      : " (No owner)"}
+                    {company.is_verified ? " ✓" : " ⏳"}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* User Selection */}
+          <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-purple-300 transition-all">
+            <label className="block text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <div className="w-6 h-6 bg-purple-500 rounded-lg flex items-center justify-center">
+                <span className="text-white text-xs font-bold">2</span>
+              </div>
+              Select User *
+            </label>
+            {loadingUsers ? (
+              <div className="text-center py-8">
+                <LoadingSpinner size="sm" />
+                <p className="text-sm text-gray-500 mt-2">Loading users...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <ExclamationTriangleIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">
+                  No users available. All users are already assigned to
+                  companies.
+                </p>
+              </div>
+            ) : (
+              <select
+                value={selectedUserId || ""}
+                onChange={(e) => setSelectedUserId(Number(e.target.value))}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-gray-900 font-medium"
+                required
+              >
+                <option value="">-- Choose a user --</option>
+                {users.map((user: any) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email}) - {user.role_name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="flex-1"
             >
-              <option value="">-- Select a user --</option>
-              {users.map((user: any) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.email}) - {user.role_name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
-            Company Information
-          </h3>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Company Name *
-            </label>
-            <input
-              type="text"
-              value={formData.company_name}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  company_name: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            />
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || !selectedUserId || !selectedCompanyId}
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Assigning...
+                </span>
+              ) : (
+                "Assign to Company"
+              )}
+            </Button>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Business License
-              </label>
-              <input
-                type="text"
-                value={formData.business_license}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    business_license: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Website
-              </label>
-              <input
-                type="url"
-                value={formData.website}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, website: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="https://example.com"
-              />
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Address
-            </label>
-            <textarea
-              value={formData.address}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, address: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              rows={2}
-            />
-          </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              rows={3}
-              placeholder="Brief description of the company..."
-            />
-          </div>
-
-          <div className="mt-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.is_verified}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    is_verified: e.target.checked,
-                  }))
-                }
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm font-medium text-gray-700">
-                Verify company immediately
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading || !selectedUserId}>
-            {isLoading ? "Assigning..." : "Assign to Company"}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </div>
     </Modal>
   );
 };
@@ -1266,181 +1323,260 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Create New Company">
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 max-h-96 overflow-y-auto"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Owner Name
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            />
+    <Modal isOpen={isOpen} onClose={handleClose} title="">
+      <div className="p-6">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+            <BuildingOfficeIcon className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Create New Company
+          </h2>
+          <p className="text-gray-600">
+            Create a new company with owner account
+          </p>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6 max-h-[60vh] overflow-y-auto pr-2"
+        >
+          {/* Owner Information Section */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <span className="text-white text-sm font-bold">1</span>
+              </div>
+              Owner Information
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Owner Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="john@example.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password *
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="••••••••"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, email: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            />
+          {/* Company Information Section */}
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                <span className="text-white text-sm font-bold">2</span>
+              </div>
+              Company Information
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.company_name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      company_name: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="Acme Travel Agency"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Business License
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.business_license}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        business_license: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="BL-123456"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Website
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.website}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        website: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Address
+                </label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      address: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                  rows={2}
+                  placeholder="123 Main St, City, Country"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                  rows={3}
+                  placeholder="Brief description of the company and services..."
+                />
+              </div>
+
+              <div className="bg-white rounded-lg p-4 border border-purple-200">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_verified}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        is_verified: e.target.checked,
+                      }))
+                    }
+                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-gray-900 block">
+                      Verify company immediately
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      Company can start creating packages right away
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, password: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              minLength={6}
-              required
-            />
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Creating...
+                </span>
+              ) : (
+                "Create Company"
+              )}
+            </Button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, phone: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Company Name
-          </label>
-          <input
-            type="text"
-            value={formData.company_name}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, company_name: e.target.value }))
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Business License
-            </label>
-            <input
-              type="text"
-              value={formData.business_license}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  business_license: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Website
-            </label>
-            <input
-              type="url"
-              value={formData.website}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, website: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="https://example.com"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Address
-          </label>
-          <textarea
-            value={formData.address}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, address: e.target.value }))
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            rows={2}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description
-          </label>
-          <textarea
-            value={formData.description}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, description: e.target.value }))
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            rows={3}
-            placeholder="Brief description of the company..."
-          />
-        </div>
-
-        <div>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={formData.is_verified}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  is_verified: e.target.checked,
-                }))
-              }
-              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-            />
-            <span className="text-sm font-medium text-gray-700">
-              Verify company immediately
-            </span>
-          </label>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create Company"}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </div>
     </Modal>
   );
 };
@@ -1744,6 +1880,332 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+};
+
+// Reassign Company Modal Component
+interface ReassignCompanyModalProps {
+  isOpen: boolean;
+  company: Company;
+  onClose: () => void;
+  onSubmit: (userId: number) => void;
+  isLoading: boolean;
+}
+
+const ReassignCompanyModal: React.FC<ReassignCompanyModalProps> = ({
+  isOpen,
+  company,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+
+  // Fetch users without company
+  const { data: usersData, isLoading: loadingUsers } = useQuery({
+    queryKey: ["users-without-company"],
+    queryFn: () => adminService.getUsersWithoutCompany(),
+    enabled: isOpen,
+  });
+
+  const users = usersData?.data || [];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserId) {
+      toast.error("Please select a user");
+      return;
+    }
+    onSubmit(selectedUserId);
+  };
+
+  const handleClose = () => {
+    setSelectedUserId(null);
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Reassign Company Owner">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-purple-800">
+            <strong>Company:</strong> {company.company_name}
+          </p>
+          <p className="text-xs text-purple-700 mt-1">
+            Current Owner: {company.name} ({company.user_email})
+          </p>
+          <p className="text-xs text-purple-600 mt-2">
+            <strong>Note:</strong> The current owner's role will be changed back
+            to USER, and the new owner's role will be changed to COMPANY.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select New Owner *
+          </label>
+          {loadingUsers ? (
+            <div className="text-center py-4">
+              <LoadingSpinner size="sm" />
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              No users available. All users are already assigned to companies.
+            </div>
+          ) : (
+            <select
+              value={selectedUserId || ""}
+              onChange={(e) => setSelectedUserId(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
+            >
+              <option value="">-- Select a user --</option>
+              {users.map((user: any) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.email}) - {user.role_name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={isLoading || !selectedUserId}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            {isLoading ? "Reassigning..." : "Reassign Company"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Create Orphan Company Modal Component
+interface CreateOrphanModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (companyData: any) => void;
+  isLoading: boolean;
+}
+
+const CreateOrphanModal: React.FC<CreateOrphanModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [formData, setFormData] = useState({
+    company_name: "",
+    business_license: "",
+    address: "",
+    description: "",
+    website: "",
+    is_verified: false,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  const handleClose = () => {
+    setFormData({
+      company_name: "",
+      business_license: "",
+      address: "",
+      description: "",
+      website: "",
+      is_verified: false,
+    });
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="">
+      <div className="p-6">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+            <BuildingOfficeIcon className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Create Orphan Company
+          </h2>
+          <p className="text-gray-600">
+            Create a company without an owner (can be assigned later)
+          </p>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5 max-h-[60vh] overflow-y-auto pr-2"
+        >
+          {/* Info Banner */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <ExclamationTriangleIcon className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-900">
+                <p className="font-semibold mb-1">No Owner Assignment</p>
+                <p className="text-amber-700">
+                  This company will be created without an owner. You can assign
+                  an owner later using the "Reassign Owner" feature.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Company Information */}
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-amber-300 transition-all">
+              <label className="block text-sm font-bold text-gray-900 mb-3">
+                Company Name *
+              </label>
+              <input
+                type="text"
+                value={formData.company_name}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    company_name: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900 font-medium"
+                placeholder="Acme Travel Agency"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-amber-300 transition-all">
+                <label className="block text-sm font-bold text-gray-900 mb-3">
+                  Business License
+                </label>
+                <input
+                  type="text"
+                  value={formData.business_license}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      business_license: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  placeholder="BL-123456"
+                />
+              </div>
+
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-amber-300 transition-all">
+                <label className="block text-sm font-bold text-gray-900 mb-3">
+                  Website
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      website: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  placeholder="https://example.com"
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-amber-300 transition-all">
+              <label className="block text-sm font-bold text-gray-900 mb-3">
+                Address
+              </label>
+              <textarea
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, address: e.target.value }))
+                }
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-none"
+                rows={2}
+                placeholder="123 Main St, City, Country"
+              />
+            </div>
+
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-amber-300 transition-all">
+              <label className="block text-sm font-bold text-gray-900 mb-3">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-none"
+                rows={3}
+                placeholder="Brief description of the company and services..."
+              />
+            </div>
+
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border-2 border-green-200">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_verified}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      is_verified: e.target.checked,
+                    }))
+                  }
+                  className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                />
+                <div>
+                  <span className="text-sm font-bold text-gray-900 block">
+                    Verify company immediately
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    Company will be ready for operations once an owner is
+                    assigned
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Creating...
+                </span>
+              ) : (
+                "Create Orphan Company"
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
     </Modal>
   );
 };

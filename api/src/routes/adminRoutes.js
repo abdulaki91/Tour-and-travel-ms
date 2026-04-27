@@ -171,6 +171,32 @@ router.post(
   AdminController.assignUserToCompany,
 );
 router.get("/users/without-company", AdminController.getUsersWithoutCompany);
+router.get(
+  "/companies/for-assignment",
+  AdminController.getAllCompaniesForAssignment,
+);
+router.post(
+  "/companies/:companyId/reassign",
+  validateParams(companyIdValidation),
+  validate(
+    Joi.object({ user_id: Joi.number().integer().positive().required() }),
+  ),
+  AdminController.reassignCompany,
+);
+router.post(
+  "/companies/create-orphan",
+  validate(
+    Joi.object({
+      company_name: Joi.string().required().max(255),
+      business_license: Joi.string().max(255).optional(),
+      address: Joi.string().max(500).optional(),
+      description: Joi.string().max(1000).optional(),
+      website: Joi.string().uri().optional(),
+      is_verified: Joi.boolean().optional(),
+    }),
+  ),
+  AdminController.createOrphanCompany,
+);
 router.put(
   "/companies/:companyId",
   validateParams(companyIdValidation),

@@ -1293,6 +1293,200 @@ export class AdminService {
     return users;
   }
 
+  // Get all companies (for assignment dropdown) (NEW)
+  static async getAllCompaniesForAssignment() {
+    const [companies] = await pool.execute(
+      `SELECT 
+        c.id,
+        c.company_name,
+        c.is_verified,
+        u.name as current_owner,
+        u.email as current_owner_email,
+        u.id as current_owner_id
+      FROM companies c
+      LEFT JOIN users u ON c.user_id = u.id
+      ORDER BY c.company_name ASC`,
+    );
+
+    return companies;
+  }
+
+  // Reassign company to different user (NEW)
+  static async reassignCompany(companyId, newUserId) {
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check if company exists
+      const [companies] = await connection.execute(
+        "SELECT id, user_id, company_name FROM companies WHERE id = ?",
+        [companyId],
+      );
+
+      if (companies.length === 0) {
+        throw new Error("Company not found");
+      }
+
+      const company = companies[0];
+      const oldUserId = company.user_id;
+
+      // Check if new user exists
+      const [newUsers] = await connection.execute(
+        "SELECT id, role_id FROM users WHERE id = ?",
+        [newUserId],
+      );
+
+      if (newUsers.length === 0) {
+        throw new Error("User not found");
+      }
+
+      // Check if new user already has a company
+      const [existingCompany] = await connection.execute(
+        "SELECT id FROM companies WHERE user_id = ?",
+        [newUserId],
+      );
+
+      if (existingCompany.length > 0) {
+        throw new Error("User already has a company assigned");
+      }
+
+      // Get COMPANY and USER role IDs
+      const [roles] = await connection.execute(
+        "SELECT id, name FROM roles WHERE name IN ('COMPANY', 'USER')",
+      );
+
+      const companyRoleId = roles.find((r) => r.name === "COMPANY")?.id;
+      const userRoleId = roles.find((r) => r.name === "USER")?.id;
+
+      if (!companyRoleId || !userRoleId) {
+        throw new Error("Required roles not found");
+      }
+
+      // Change old user's role back to USER (if they had a company)
+      if (oldUserId) {
+        await connection.execute("UPDATE users SET role_id = ? WHERE id = ?", [
+          userRoleId,
+          oldUserId,
+        ]);
+
+        // Notify old owner
+        await connection.execute(
+          `INSERT INTO notifications (user_id, title, message, type) 
+           VALUES (?, ?, ?, ?)`,
+          [
+            oldUserId,
+            "Company Ownership Transferred",
+            `The company "${company.company_name}" has been transferred to another user by an administrator.`,
+            "info",
+          ],
+        );
+      }
+
+      // Update company with new user
+      await connection.execute(
+        "UPDATE companies SET user_id = ? WHERE id = ?",
+        [newUserId, companyId],
+      );
+
+      // Change new user's role to COMPANY
+      await connection.execute("UPDATE users SET role_id = ? WHERE id = ?", [
+        companyRoleId,
+        newUserId,
+      ]);
+
+      // Notify new owner
+      await connection.execute(
+        `INSERT INTO notifications (user_id, title, message, type) 
+         VALUES (?, ?, ?, ?)`,
+        [
+          newUserId,
+          "Company Assigned to You",
+          `You have been assigned as the owner of "${company.company_name}". You can now manage this company.`,
+          "success",
+        ],
+      );
+
+      // Get updated company
+      const [updatedCompany] = await connection.execute(
+        `SELECT 
+          c.*,
+          u.name as owner_name,
+          u.email,
+          u.phone,
+          u.is_active
+        FROM companies c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.id = ?`,
+        [companyId],
+      );
+
+      await connection.commit();
+      return updatedCompany[0];
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Create company without user (orphan company) (NEW)
+  static async createOrphanCompany(companyData) {
+    const {
+      company_name,
+      business_license,
+      address,
+      description,
+      website,
+      is_verified = false,
+    } = companyData;
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check if company name already exists
+      const [existingCompanies] = await connection.execute(
+        "SELECT id FROM companies WHERE company_name = ?",
+        [company_name],
+      );
+
+      if (existingCompanies.length > 0) {
+        throw new Error("Company with this name already exists");
+      }
+
+      // Create company without user_id (will be NULL)
+      const [companyResult] = await connection.execute(
+        `INSERT INTO companies (user_id, company_name, license_number, address, description, website, is_verified) 
+         VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+        [
+          company_name,
+          business_license,
+          address,
+          description,
+          website,
+          is_verified,
+        ],
+      );
+
+      // Get created company
+      const [newCompany] = await connection.execute(
+        `SELECT * FROM companies WHERE id = ?`,
+        [companyResult.insertId],
+      );
+
+      await connection.commit();
+      return newCompany[0];
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
   // Company Update
   static async updateCompany(companyId, companyData) {
     const {

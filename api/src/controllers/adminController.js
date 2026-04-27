@@ -507,6 +507,64 @@ export class AdminController {
     }
   }
 
+  // Get all companies for assignment (NEW)
+  static async getAllCompaniesForAssignment(req, res) {
+    try {
+      const companies = await AdminService.getAllCompaniesForAssignment();
+
+      res.status(200).json({
+        success: true,
+        data: companies,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Reassign company to different user (NEW)
+  static async reassignCompany(req, res) {
+    try {
+      const { companyId } = req.params;
+      const { user_id } = req.body;
+
+      const company = await AdminService.reassignCompany(companyId, user_id);
+
+      res.status(200).json({
+        success: true,
+        message: "Company reassigned successfully",
+        data: company,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Create orphan company (NEW)
+  static async createOrphanCompany(req, res) {
+    try {
+      const companyData = req.body;
+
+      const company = await AdminService.createOrphanCompany(companyData);
+
+      res.status(201).json({
+        success: true,
+        message: "Company created successfully (no owner assigned)",
+        data: company,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   // Company Update
   static async updateCompany(req, res) {
     try {

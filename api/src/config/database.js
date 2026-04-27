@@ -114,7 +114,7 @@ const createTables = async (connection) => {
   await connection.query(`
     CREATE TABLE IF NOT EXISTS companies (
       id INT PRIMARY KEY AUTO_INCREMENT,
-      user_id INT UNIQUE NOT NULL,
+      user_id INT UNIQUE,
       company_name VARCHAR(255) NOT NULL,
       description TEXT,
       address TEXT,

@@ -18,7 +18,7 @@ export interface Company {
 
 export const companyService = {
   async getCompanyProfile(): Promise<ApiResponse<Company>> {
-    const response = await api.get("/company/profile");
+    const response = await api.get("/company/me");
     return response.data;
   },
 
@@ -31,12 +31,12 @@ export const companyService = {
     website?: string;
     license_number?: string;
   }): Promise<ApiResponse<Company>> {
-    const response = await api.post("/auth/register-company", data);
+    const response = await api.post("/company/register", data);
     return response.data;
   },
 
   async updateCompany(data: Partial<Company>): Promise<ApiResponse<Company>> {
-    const response = await api.put("/company/profile", data);
+    const response = await api.put("/company/me", data);
     return response.data;
   },
 };

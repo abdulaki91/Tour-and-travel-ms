@@ -307,6 +307,39 @@ export const adminService = {
     return response.data;
   },
 
+  // Get all companies for assignment (NEW)
+  async getAllCompaniesForAssignment(): Promise<ApiResponse<any[]>> {
+    const response = await api.get("/admin/companies/for-assignment");
+    return response.data;
+  },
+
+  // Reassign company to different user (NEW)
+  async reassignCompany(
+    companyId: number,
+    userId: number,
+  ): Promise<ApiResponse<Company>> {
+    const response = await api.post(`/admin/companies/${companyId}/reassign`, {
+      user_id: userId,
+    });
+    return response.data;
+  },
+
+  // Create orphan company (NEW)
+  async createOrphanCompany(companyData: {
+    company_name: string;
+    business_license?: string;
+    address?: string;
+    description?: string;
+    website?: string;
+    is_verified?: boolean;
+  }): Promise<ApiResponse<Company>> {
+    const response = await api.post(
+      "/admin/companies/create-orphan",
+      companyData,
+    );
+    return response.data;
+  },
+
   // Company update
   async updateCompany(
     companyId: number,
