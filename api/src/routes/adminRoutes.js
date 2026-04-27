@@ -78,19 +78,43 @@ const createUserValidation = Joi.object({
   role: Joi.string().valid("USER", "COMPANY", "ADMIN").optional(),
 });
 
-const createCompanyValidation = Joi.object({
-  // User data
-  name: Joi.string().required().max(255),
-  email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
+const updateUserValidation = Joi.object({
+  name: Joi.string().max(255).optional(),
+  email: Joi.string().email().optional(),
   phone: Joi.string().max(20).optional(),
-  // Company data
+  role: Joi.string().valid("USER", "COMPANY", "ADMIN").optional(),
+});
+
+const resetPasswordValidation = Joi.object({
+  password: Joi.string().min(6).required(),
+});
+
+const createCompanyValidation = Joi.object({
+  // User data (optional for assign, required for create)
+  name: Joi.string().max(255).optional(),
+  email: Joi.string().email().optional(),
+  password: Joi.string().min(6).optional(),
+  phone: Joi.string().max(20).optional(),
+  // Company data (always required)
   company_name: Joi.string().required().max(255),
   business_license: Joi.string().max(255).optional(),
   address: Joi.string().max(500).optional(),
   description: Joi.string().max(1000).optional(),
   website: Joi.string().uri().optional(),
   is_verified: Joi.boolean().optional(),
+});
+
+const updateCompanyValidation = Joi.object({
+  // User data
+  name: Joi.string().max(255).optional(),
+  email: Joi.string().email().optional(),
+  phone: Joi.string().max(20).optional(),
+  // Company data
+  company_name: Joi.string().max(255).optional(),
+  business_license: Joi.string().max(255).optional(),
+  address: Joi.string().max(500).optional(),
+  description: Joi.string().max(1000).optional(),
+  website: Joi.string().uri().optional(),
 });
 
 // All admin routes require ADMIN role
@@ -109,11 +133,23 @@ router.post(
   validate(createUserValidation),
   AdminController.createUser,
 );
+router.put(
+  "/users/:userId",
+  validateParams(userIdValidation),
+  validate(updateUserValidation),
+  AdminController.updateUser,
+);
 router.patch(
   "/users/:userId/status",
   validateParams(userIdValidation),
   validate(userStatusValidation),
   AdminController.updateUserStatus,
+);
+router.post(
+  "/users/:userId/reset-password",
+  validateParams(userIdValidation),
+  validate(resetPasswordValidation),
+  AdminController.resetUserPassword,
 );
 router.delete(
   "/users/:userId",
@@ -128,6 +164,19 @@ router.post(
   validate(createCompanyValidation),
   AdminController.createCompany,
 );
+router.post(
+  "/companies/assign/:userId",
+  validateParams(userIdValidation),
+  validate(createCompanyValidation),
+  AdminController.assignUserToCompany,
+);
+router.get("/users/without-company", AdminController.getUsersWithoutCompany);
+router.put(
+  "/companies/:companyId",
+  validateParams(companyIdValidation),
+  validate(updateCompanyValidation),
+  AdminController.updateCompany,
+);
 router.patch(
   "/companies/:companyId/status",
   validateParams(companyIdValidation),
@@ -139,6 +188,23 @@ router.patch(
   validateParams(companyIdValidation),
   validate(companyVerificationValidation),
   AdminController.verifyCompany,
+);
+router.post(
+  "/companies/:companyId/verify-with-reason",
+  validateParams(companyIdValidation),
+  validate(
+    Joi.object({
+      is_verified: Joi.boolean().required(),
+      rejection_reason: Joi.string().max(500).optional(),
+    }),
+  ),
+  AdminController.verifyCompanyWithReason,
+);
+router.post(
+  "/companies/:companyId/reset-password",
+  validateParams(companyIdValidation),
+  validate(resetPasswordValidation),
+  AdminController.resetCompanyPassword,
 );
 router.delete(
   "/companies/:companyId",

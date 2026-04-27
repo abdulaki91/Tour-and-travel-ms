@@ -10,8 +10,11 @@ import {
   EyeIcon,
   ShieldCheckIcon,
   TrashIcon,
+  PencilIcon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 import { adminService } from "../../services/admin";
+import api from "../../services/api";
 import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import Pagination from "../../components/common/Pagination";
@@ -49,6 +52,12 @@ const AdminCompanies: React.FC = () => {
     null,
   );
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAssignUserModal, setShowAssignUserModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] =
+    useState<Company | null>(null);
+  const [showEditModal, setShowEditModal] = useState<Company | null>(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] =
+    useState<Company | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   const queryClient = useQueryClient();
@@ -86,6 +95,26 @@ const AdminCompanies: React.FC = () => {
     },
   });
 
+  const verifyWithReasonMutation = useMutation({
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: number;
+      data: { is_verified: boolean; rejection_reason?: string };
+    }) => {
+      return api.post(`/admin/companies/${companyId}/verify-with-reason`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success("Company verification updated successfully");
+      setShowVerificationModal(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to verify company");
+    },
+  });
+
   const deleteCompanyMutation = useMutation({
     mutationFn: (companyId: number) => adminService.deleteCompany(companyId),
     onSuccess: () => {
@@ -107,6 +136,62 @@ const AdminCompanies: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to create company");
+    },
+  });
+
+  const assignUserMutation = useMutation({
+    mutationFn: ({
+      userId,
+      companyData,
+    }: {
+      userId: number;
+      companyData: any;
+    }) => adminService.assignUserToCompany(userId, companyData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User assigned to company successfully");
+      setShowAssignUserModal(false);
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to assign user to company",
+      );
+    },
+  });
+
+  const updateCompanyMutation = useMutation({
+    mutationFn: ({
+      companyId,
+      companyData,
+    }: {
+      companyId: number;
+      companyData: any;
+    }) => adminService.updateCompany(companyId, companyData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success("Company updated successfully");
+      setShowEditModal(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update company");
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({
+      companyId,
+      password,
+    }: {
+      companyId: number;
+      password: string;
+    }) => adminService.resetCompanyPassword(companyId, password),
+    onSuccess: () => {
+      toast.success("Password reset successfully");
+      setShowResetPasswordModal(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to reset password");
     },
   });
 
@@ -174,13 +259,22 @@ const AdminCompanies: React.FC = () => {
               Oversee tour companies and their registrations 🏢
             </p>
           </div>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-white text-primary-600 hover:bg-gray-50 flex items-center gap-2"
-          >
-            <BuildingOfficeIcon className="h-5 w-5" />
-            Add Company
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowAssignUserModal(true)}
+              className="bg-white text-primary-600 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <BuildingOfficeIcon className="h-5 w-5" />
+              Assign User
+            </Button>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-white text-primary-600 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <BuildingOfficeIcon className="h-5 w-5" />
+              Create New
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -431,9 +525,21 @@ const AdminCompanies: React.FC = () => {
                         <EyeIcon className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() =>
-                          handleVerifyCompany(company.id, !company.is_verified)
-                        }
+                        onClick={() => setShowEditModal(company)}
+                        className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Edit company"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowResetPasswordModal(company)}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Reset password"
+                      >
+                        <KeyIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowVerificationModal(company)}
                         className={`p-2 rounded-lg transition-colors ${
                           company.is_verified
                             ? "text-yellow-600 hover:bg-yellow-50"
@@ -441,7 +547,7 @@ const AdminCompanies: React.FC = () => {
                         }`}
                         title={
                           company.is_verified
-                            ? "Mark as pending"
+                            ? "Review verification"
                             : "Verify company"
                         }
                       >
@@ -650,7 +756,462 @@ const AdminCompanies: React.FC = () => {
         onSubmit={(companyData) => createCompanyMutation.mutate(companyData)}
         isLoading={createCompanyMutation.isPending}
       />
+
+      {/* Assign User to Company Modal */}
+      <AssignUserModal
+        isOpen={showAssignUserModal}
+        onClose={() => setShowAssignUserModal(false)}
+        onSubmit={(userId, companyData) =>
+          assignUserMutation.mutate({ userId, companyData })
+        }
+        isLoading={assignUserMutation.isPending}
+      />
+
+      {/* Edit Company Modal */}
+      {showEditModal && (
+        <EditCompanyModal
+          isOpen={true}
+          company={showEditModal}
+          onClose={() => setShowEditModal(null)}
+          onSubmit={(companyData) =>
+            updateCompanyMutation.mutate({
+              companyId: showEditModal.id,
+              companyData,
+            })
+          }
+          isLoading={updateCompanyMutation.isPending}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && (
+        <ResetPasswordModal
+          isOpen={true}
+          company={showResetPasswordModal}
+          onClose={() => setShowResetPasswordModal(null)}
+          onSubmit={(password) =>
+            resetPasswordMutation.mutate({
+              companyId: showResetPasswordModal.id,
+              password,
+            })
+          }
+          isLoading={resetPasswordMutation.isPending}
+        />
+      )}
+
+      {/* Verification Modal */}
+      {showVerificationModal && (
+        <VerificationModal
+          isOpen={true}
+          company={showVerificationModal}
+          onClose={() => setShowVerificationModal(null)}
+          onSubmit={(data) =>
+            verifyWithReasonMutation.mutate({
+              companyId: showVerificationModal.id,
+              data,
+            })
+          }
+          isLoading={verifyWithReasonMutation.isPending}
+        />
+      )}
     </div>
+  );
+};
+
+// Verification Modal Component
+interface VerificationModalProps {
+  isOpen: boolean;
+  company: Company;
+  onClose: () => void;
+  onSubmit: (data: { is_verified: boolean; rejection_reason?: string }) => void;
+  isLoading: boolean;
+}
+
+const VerificationModal: React.FC<VerificationModalProps> = ({
+  isOpen,
+  company,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [action, setAction] = useState<"verify" | "reject" | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (action === "reject" && !rejectionReason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+
+    onSubmit({
+      is_verified: action === "verify",
+      rejection_reason: action === "reject" ? rejectionReason : undefined,
+    });
+  };
+
+  const handleClose = () => {
+    setAction(null);
+    setRejectionReason("");
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Verify Company">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-blue-800">
+            <strong>Company:</strong> {company.company_name}
+          </p>
+          <p className="text-xs text-blue-700 mt-1">
+            Owner: {company.name} ({company.email})
+          </p>
+          <p className="text-xs text-blue-700">
+            Current Status:{" "}
+            <span
+              className={
+                company.is_verified ? "text-green-700" : "text-yellow-700"
+              }
+            >
+              {company.is_verified ? "Verified" : "Pending"}
+            </span>
+          </p>
+        </div>
+
+        {!action && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600 mb-4">
+              Choose an action for this company:
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setAction("verify")}
+              className="w-full p-4 border-2 border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3">
+                <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                <div>
+                  <h3 className="font-semibold text-green-900">
+                    Verify Company
+                  </h3>
+                  <p className="text-sm text-green-700">
+                    Approve this company to create packages and receive bookings
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAction("reject")}
+              className="w-full p-4 border-2 border-red-200 rounded-lg hover:border-red-400 hover:bg-red-50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3">
+                <XCircleIcon className="h-6 w-6 text-red-600" />
+                <div>
+                  <h3 className="font-semibold text-red-900">
+                    Reject Verification
+                  </h3>
+                  <p className="text-sm text-red-700">
+                    Reject this company with a reason
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {action === "verify" && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircleIcon className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-green-900 mb-1">
+                  Verify Company
+                </h3>
+                <p className="text-sm text-green-800">
+                  This company will be able to create packages and receive
+                  bookings. The owner will receive a notification.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {action === "reject" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rejection Reason *
+            </label>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={4}
+              required
+              placeholder="Explain why this company is being rejected..."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              The owner will receive this message in a notification
+            </p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4">
+          {action ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAction(null)}
+              >
+                Back
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className={
+                  action === "verify"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
+                }
+              >
+                {isLoading
+                  ? "Processing..."
+                  : action === "verify"
+                    ? "Verify Company"
+                    : "Reject Company"}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+          )}
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Assign User to Company Modal Component
+interface AssignUserModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (userId: number, companyData: any) => void;
+  isLoading: boolean;
+}
+
+const AssignUserModal: React.FC<AssignUserModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({
+    company_name: "",
+    business_license: "",
+    address: "",
+    description: "",
+    website: "",
+    is_verified: false,
+  });
+
+  // Fetch users without company
+  const { data: usersData, isLoading: loadingUsers } = useQuery({
+    queryKey: ["users-without-company"],
+    queryFn: () => adminService.getUsersWithoutCompany(),
+    enabled: isOpen,
+  });
+
+  const users = usersData?.data || [];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserId) {
+      toast.error("Please select a user");
+      return;
+    }
+    onSubmit(selectedUserId, formData);
+  };
+
+  const handleClose = () => {
+    setSelectedUserId(null);
+    setFormData({
+      company_name: "",
+      business_license: "",
+      address: "",
+      description: "",
+      website: "",
+      is_verified: false,
+    });
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Assign User to Company">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 max-h-96 overflow-y-auto"
+      >
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> This will assign an existing user to a new
+            company and change their role to COMPANY.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select User *
+          </label>
+          {loadingUsers ? (
+            <div className="text-center py-4">
+              <LoadingSpinner size="sm" />
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              No users available. All users are already assigned to companies.
+            </div>
+          ) : (
+            <select
+              value={selectedUserId || ""}
+              onChange={(e) => setSelectedUserId(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
+            >
+              <option value="">-- Select a user --</option>
+              {users.map((user: any) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.email}) - {user.role_name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+            Company Information
+          </h3>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company Name *
+            </label>
+            <input
+              type="text"
+              value={formData.company_name}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  company_name: e.target.value,
+                }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Business License
+              </label>
+              <input
+                type="text"
+                value={formData.business_license}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    business_license: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Website
+              </label>
+              <input
+                type="url"
+                value={formData.website}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, website: e.target.value }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="https://example.com"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Address
+            </label>
+            <textarea
+              value={formData.address}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, address: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={2}
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={3}
+              placeholder="Brief description of the company..."
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.is_verified}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    is_verified: e.target.checked,
+                  }))
+                }
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Verify company immediately
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading || !selectedUserId}>
+            {isLoading ? "Assigning..." : "Assign to Company"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
@@ -877,6 +1438,309 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
           </Button>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? "Creating..." : "Create Company"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Edit Company Modal Component
+interface EditCompanyModalProps {
+  isOpen: boolean;
+  company: Company;
+  onClose: () => void;
+  onSubmit: (companyData: any) => void;
+  isLoading: boolean;
+}
+
+const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
+  isOpen,
+  company,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [formData, setFormData] = useState({
+    // User data
+    name: company.name || "",
+    email: company.email || "",
+    phone: company.phone || "",
+    // Company data
+    company_name: company.company_name || "",
+    business_license: company.license_number || "",
+    address: company.address || "",
+    description: company.description || "",
+    website: company.website || "",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Company">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 max-h-96 overflow-y-auto"
+      >
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-blue-800">
+            <strong>Editing:</strong> {company.company_name}
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Owner Information
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Owner Name
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Company Information
+          </h3>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company Name
+            </label>
+            <input
+              type="text"
+              value={formData.company_name}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  company_name: e.target.value,
+                }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Business License
+              </label>
+              <input
+                type="text"
+                value={formData.business_license}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    business_license: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Website
+              </label>
+              <input
+                type="url"
+                value={formData.website}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, website: e.target.value }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="https://example.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Address
+            </label>
+            <textarea
+              value={formData.address}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, address: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={2}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={3}
+              placeholder="Brief description of the company..."
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Updating..." : "Update Company"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Reset Password Modal Component
+interface ResetPasswordModalProps {
+  isOpen: boolean;
+  company: Company;
+  onClose: () => void;
+  onSubmit: (password: string) => void;
+  isLoading: boolean;
+}
+
+const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
+  isOpen,
+  company,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    onSubmit(password);
+  };
+
+  const handleClose = () => {
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Reset Company Password">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-amber-800">
+            <strong>Resetting password for:</strong> {company.company_name}
+          </p>
+          <p className="text-xs text-amber-700 mt-1">
+            Owner: {company.name} ({company.email})
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            New Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            minLength={6}
+            required
+            placeholder="Enter new password"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Confirm Password
+          </label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            minLength={6}
+            required
+            placeholder="Confirm new password"
+          />
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Resetting..." : "Reset Password"}
           </Button>
         </div>
       </form>

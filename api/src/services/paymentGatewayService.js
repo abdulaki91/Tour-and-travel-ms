@@ -1,5 +1,6 @@
 import axios from "axios";
 import crypto from "crypto";
+import chapaService from "./chapaService.js";
 
 export class PaymentGatewayService {
   // Telebirr Payment Integration
@@ -48,43 +49,54 @@ export class PaymentGatewayService {
 
   // Chapa Payment Integration
   static async initiateChapaPayment(paymentData) {
-    const { amount, booking_reference, user_email, user_phone, return_url } =
-      paymentData;
+    const {
+      amount,
+      booking_reference,
+      user_email,
+      user_phone,
+      return_url,
+      user_name,
+    } = paymentData;
 
     try {
-      // Mock Chapa API integration
+      const tx_ref = chapaService.generateTxRef("TOUR");
+      const callback_url = `${process.env.API_BASE_URL || "http://localhost:5003"}/api/payments/chapa/callback`;
+      const final_return_url =
+        return_url ||
+        `${process.env.FRONTEND_URL || "http://localhost:5173"}/user/bookings`;
+
+      // Split name into first and last
+      const nameParts = (user_name || "Customer").split(" ");
+      const first_name = nameParts[0] || "Customer";
+      const last_name = nameParts.slice(1).join(" ") || "";
+
       const chapaPayload = {
         amount: amount,
-        currency: "ETB",
         email: user_email,
-        phone_number: user_phone,
-        tx_ref: booking_reference,
-        callback_url: `${process.env.API_BASE_URL}/api/payments/chapa/callback`,
-        return_url: return_url,
+        first_name: first_name,
+        last_name: last_name,
+        phone_number: user_phone || "",
+        tx_ref: tx_ref,
+        callback_url: callback_url,
+        return_url: final_return_url,
         customization: {
-          title: "East Hararghe Tour & Travel",
-          description: "Tour package booking payment",
+          title: "East Hararghe Tours",
+          description: `Payment for booking ${booking_reference}`,
         },
       };
 
-      const headers = {
-        Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      };
+      const response = await chapaService.initializePayment(chapaPayload);
 
-      // For now, return mock response
-      // const response = await axios.post('https://api.chapa.co/v1/transaction/initialize', chapaPayload, { headers });
-
-      // Mock successful response
       return {
         success: true,
-        payment_url: `https://mock-chapa.com/pay?ref=${booking_reference}`,
-        transaction_id: `CH_${Date.now()}`,
+        payment_url: response.checkout_url,
+        transaction_id: tx_ref,
         status: "pending",
+        chapa_reference: response.data?.reference,
       };
     } catch (error) {
       console.error("Chapa payment initiation failed:", error);
-      throw new Error("Failed to initiate Chapa payment");
+      throw new Error(error.message || "Failed to initiate Chapa payment");
     }
   }
 
@@ -138,31 +150,35 @@ export class PaymentGatewayService {
     }
   }
 
-  // Verify Chapa Payment - Always succeeds for demo purposes
+  // Verify Chapa Payment
   static async verifyChapaPayment(transactionId) {
     try {
-      // Simulate a small delay for realism
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const response = await chapaService.verifyPayment(transactionId);
 
-      // Always return success for demo purposes
-      return {
-        success: true,
-        status: "completed",
-        transaction_id: transactionId,
-        amount: null, // processPayment will fall back to stored payment amount
-        verified_at: new Date().toISOString(),
-        verification_note: "Auto-verified for demo purposes",
-      };
+      if (response.success && response.status === "success") {
+        return {
+          success: true,
+          status: "completed",
+          transaction_id: transactionId,
+          amount: response.data.amount,
+          verified_at: new Date().toISOString(),
+          chapa_data: response.data,
+        };
+      } else {
+        return {
+          success: false,
+          status: "failed",
+          transaction_id: transactionId,
+          error: "Payment verification failed",
+        };
+      }
     } catch (error) {
       console.error("Chapa verification failed:", error);
-      // Even if there's an error, return success for demo
       return {
-        success: true,
-        status: "completed",
+        success: false,
+        status: "failed",
         transaction_id: transactionId,
-        amount: null,
-        verified_at: new Date().toISOString(),
-        verification_note: "Auto-verified (fallback)",
+        error: error.message,
       };
     }
   }
@@ -226,13 +242,23 @@ export class PaymentGatewayService {
   }
 
   static async processChapaRefund(transactionId, amount, reason) {
-    // Mock Chapa refund
+    // Chapa doesn't have an automated refund API
+    // Refunds must be processed manually through Chapa dashboard
+    // This creates a refund request that the company must process manually
     return {
       success: true,
       refund_id: `CH_REF_${Date.now()}`,
-      status: "refund_pending",
+      status: "refund_requested",
       amount: amount,
-      estimated_completion: "1-3 business days",
+      estimated_completion: "Manual processing required",
+      note: "Please process this refund through your Chapa dashboard at https://dashboard.chapa.co",
+      instructions: [
+        "1. Login to your Chapa dashboard",
+        "2. Navigate to Transactions",
+        "3. Find transaction: " + transactionId,
+        "4. Click 'Refund' and enter amount: " + amount + " ETB",
+        "5. Confirm the refund",
+      ],
     };
   }
 

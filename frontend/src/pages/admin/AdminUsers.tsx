@@ -11,6 +11,7 @@ import {
   TrashIcon,
   CheckCircleIcon,
   XCircleIcon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 import { adminService } from "../../services/admin";
 import Button from "../../components/ui/Button";
@@ -43,6 +44,9 @@ const AdminUsers: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState<User | null>(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] =
+    useState<User | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -100,6 +104,31 @@ const AdminUsers: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to create user");
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ userId, userData }: { userId: number; userData: any }) =>
+      adminService.updateUser(userId, userData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User updated successfully");
+      setShowEditModal(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update user");
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ userId, password }: { userId: number; password: string }) =>
+      adminService.resetUserPassword(userId, password),
+    onSuccess: () => {
+      toast.success("Password reset successfully");
+      setShowResetPasswordModal(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to reset password");
     },
   });
 
@@ -429,6 +458,20 @@ const AdminUsers: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setShowEditModal(user)}
+                        className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Edit user"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowResetPasswordModal(user)}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Reset password"
+                      >
+                        <KeyIcon className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() =>
                           handleStatusToggle(user.id, user.is_active)
                         }
@@ -521,6 +564,38 @@ const AdminUsers: React.FC = () => {
         onSubmit={(userData) => createUserMutation.mutate(userData)}
         isLoading={createUserMutation.isPending}
       />
+
+      {/* Edit User Modal */}
+      {showEditModal && (
+        <EditUserModal
+          isOpen={true}
+          user={showEditModal}
+          onClose={() => setShowEditModal(null)}
+          onSubmit={(userData) =>
+            updateUserMutation.mutate({
+              userId: showEditModal.id,
+              userData,
+            })
+          }
+          isLoading={updateUserMutation.isPending}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && (
+        <ResetPasswordModal
+          isOpen={true}
+          user={showResetPasswordModal}
+          onClose={() => setShowResetPasswordModal(null)}
+          onSubmit={(password) =>
+            resetPasswordMutation.mutate({
+              userId: showResetPasswordModal.id,
+              password,
+            })
+          }
+          isLoading={resetPasswordMutation.isPending}
+        />
+      )}
     </div>
   );
 };
@@ -649,6 +724,213 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
           </Button>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? "Creating..." : "Create User"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Edit User Modal Component
+interface EditUserModalProps {
+  isOpen: boolean;
+  user: User;
+  onClose: () => void;
+  onSubmit: (userData: any) => void;
+  isLoading: boolean;
+}
+
+const EditUserModal: React.FC<EditUserModalProps> = ({
+  isOpen,
+  user,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [formData, setFormData] = useState({
+    name: user.name || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    role: user.role_name || "USER",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit User">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name
+          </label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, name: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, email: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Phone Number
+          </label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, phone: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Role
+          </label>
+          <select
+            value={formData.role}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, role: e.target.value }))
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="USER">User</option>
+            <option value="COMPANY">Company</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Updating..." : "Update User"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// Reset Password Modal Component
+interface ResetPasswordModalProps {
+  isOpen: boolean;
+  user: User;
+  onClose: () => void;
+  onSubmit: (password: string) => void;
+  isLoading: boolean;
+}
+
+const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
+  isOpen,
+  user,
+  onClose,
+  onSubmit,
+  isLoading,
+}) => {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    onSubmit(password);
+  };
+
+  const handleClose = () => {
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Reset Password">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-amber-800">
+            <strong>Resetting password for:</strong> {user.name} ({user.email})
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            New Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            minLength={6}
+            required
+            placeholder="Enter new password"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Confirm Password
+          </label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            minLength={6}
+            required
+            placeholder="Confirm new password"
+          />
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Resetting..." : "Reset Password"}
           </Button>
         </div>
       </form>

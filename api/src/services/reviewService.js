@@ -130,8 +130,19 @@ export class ReviewService {
       limit = 10,
       sort_by = "created_at",
       sort_order = "desc",
+      rating,
     } = filters;
     const offset = (page - 1) * limit;
+
+    let whereConditions = ["r.user_id = ?"];
+    let queryParams = [userId];
+
+    if (rating) {
+      whereConditions.push("r.rating = ?");
+      queryParams.push(parseInt(rating));
+    }
+
+    const whereClause = whereConditions.join(" AND ");
 
     const [reviews] = await pool.execute(
       `SELECT 
@@ -140,27 +151,26 @@ export class ReviewService {
         p.location as package_location
       FROM reviews r
       JOIN packages p ON r.package_id = p.id
-      WHERE r.user_id = ?
+      WHERE ${whereClause}
       ORDER BY r.${sort_by} ${sort_order.toUpperCase()}
       LIMIT ? OFFSET ?`,
-      [userId, limit, offset],
+      [...queryParams, limit, offset],
     );
 
     // Get total count
     const [countResult] = await pool.execute(
-      "SELECT COUNT(*) as total FROM reviews WHERE user_id = ?",
-      [userId],
+      `SELECT COUNT(*) as total FROM reviews r WHERE ${whereClause}`,
+      queryParams,
     );
 
     const total = countResult[0].total;
 
     return {
-      reviews,
+      items: reviews,
       pagination: {
-        current_page: page,
-        total_pages: Math.ceil(total / limit),
-        total_items: total,
-        items_per_page: limit,
+        page: parseInt(page),
+        total: parseInt(total),
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -175,8 +185,33 @@ export class ReviewService {
     } = filters;
     const offset = (page - 1) * limit;
 
+    // First, get the actual company_id from the companies table using user_id
+    const [companies] = await pool.execute(
+      "SELECT id FROM companies WHERE user_id = ?",
+      [companyId],
+    );
+
+    if (companies.length === 0) {
+      return {
+        reviews: [],
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: 0,
+          total_items: 0,
+          items_per_page: parseInt(limit),
+        },
+        stats: {
+          average_rating: 0,
+          total_reviews: 0,
+          rating_distribution: [],
+        },
+      };
+    }
+
+    const actualCompanyId = companies[0].id;
+
     let whereConditions = ["p.company_id = ?"];
-    let queryParams = [companyId];
+    let queryParams = [actualCompanyId];
 
     if (rating) {
       whereConditions.push("r.rating = ?");
@@ -223,7 +258,7 @@ export class ReviewService {
       WHERE p.company_id = ?
       GROUP BY r.rating
       ORDER BY r.rating DESC`,
-      [companyId],
+      [actualCompanyId],
     );
 
     // Get average rating
@@ -234,7 +269,7 @@ export class ReviewService {
       FROM reviews r
       JOIN packages p ON r.package_id = p.id
       WHERE p.company_id = ?`,
-      [companyId],
+      [actualCompanyId],
     );
 
     return {

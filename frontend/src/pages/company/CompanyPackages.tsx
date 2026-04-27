@@ -12,6 +12,7 @@ import PackageStatsGrid from "../../components/company/PackageStatsGrid";
 import PackageTable from "../../components/company/PackageTable";
 import DeletePackageModal from "../../components/company/DeletePackageModal";
 import Pagination from "../../components/common/Pagination";
+import { getErrorMessage } from "../../utils/errorHandler";
 
 const CompanyPackages: React.FC = () => {
   const queryClient = useQueryClient();
@@ -29,7 +30,7 @@ const CompanyPackages: React.FC = () => {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["company-packages", filters],
-    queryFn: () => packageService.getPackages(filters),
+    queryFn: () => packageService.getMyPackages(filters),
   });
 
   const deletePackageMutation = useMutation({
@@ -40,7 +41,8 @@ const CompanyPackages: React.FC = () => {
       setDeleteModal({ isOpen: false });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to delete package");
+      const errorMessage = getErrorMessage(error, "Failed to delete package");
+      toast.error(errorMessage);
     },
   });
 
@@ -51,9 +53,11 @@ const CompanyPackages: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["company-packages"] });
     },
     onError: (error: any) => {
-      toast.error(
-        error.response?.data?.message || "Failed to update package status",
+      const errorMessage = getErrorMessage(
+        error,
+        "Failed to update package status",
       );
+      toast.error(errorMessage);
     },
   });
 

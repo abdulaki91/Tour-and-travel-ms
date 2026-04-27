@@ -63,6 +63,7 @@ export class PaymentService {
         booking_reference: booking.booking_reference,
         user_email: booking.email,
         user_phone: user_phone || booking.phone,
+        user_name: booking.name,
         return_url: return_url || `${process.env.FRONTEND_URL}/user/bookings`,
       };
 

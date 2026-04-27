@@ -1,18 +1,9 @@
 import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import {
-  CreditCardIcon,
-  DevicePhoneMobileIcon,
-  BanknotesIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ArrowRightIcon,
-} from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import { paymentService } from "../services/payments";
 import Button from "./ui/Button";
-import Input from "./ui/Input";
 import Modal from "./ui/Modal";
-import LoadingSpinner from "./ui/LoadingSpinner";
 import { toast } from "react-hot-toast";
 import { getErrorMessage } from "../utils/errorHandler";
 
@@ -35,41 +26,21 @@ interface PaymentMethod {
 const PaymentForm: React.FC<PaymentFormProps> = ({
   bookingId,
   amount,
-  onSuccess,
   onCancel,
 }) => {
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState<string>("chapa");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [paymentResult, setPaymentResult] = useState<any>(null);
-  const [paymentStatus, setPaymentStatus] = useState<
-    "idle" | "verifying" | "success"
-  >("idle");
 
   const paymentMethods: PaymentMethod[] = [
     {
-      id: "demo",
-      name: "Demo Payment",
-      description: "Instant demo payment for testing (No real money involved)",
+      id: "chapa",
+      name: "Chapa Payment",
+      description:
+        "Pay with Telebirr, CBE Birr, M-Pesa, or Card - Instant verification",
       icon: CheckCircleIcon,
-      fees: "Free",
+      fees: "2.5%",
       processingTime: "Instant",
-    },
-    {
-      id: "telebirr",
-      name: "Telebirr",
-      description: "Pay with Telebirr mobile wallet - Auto-verified instantly",
-      icon: DevicePhoneMobileIcon,
-      fees: "1.5% + 5 ETB",
-      processingTime: "Instant",
-    },
-    {
-      id: "bank_transfer",
-      name: "Commercial Bank of Ethiopia (CBE)",
-      description: "Direct bank transfer - Auto-verified when you click verify",
-      icon: BanknotesIcon,
-      fees: "10 ETB",
-      processingTime: "Instant verification",
     },
   ];
 
@@ -78,50 +49,22 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       paymentService.createPayment(bookingId, paymentData),
     onSuccess: (response) => {
       setPaymentResult(response.data);
+
+      // If Chapa payment, redirect to payment URL
+      if (
+        selectedMethod === "chapa" &&
+        response.data.gateway_response?.payment_url
+      ) {
+        window.location.href = response.data.gateway_response.payment_url;
+        return;
+      }
+
+      // For bank transfer, show instructions
       setShowConfirmation(true);
       toast.success("Payment instructions generated!");
     },
     onError: (error: any) => {
       const errorMessage = getErrorMessage(error, "Failed to initiate payment");
-      toast.error(errorMessage);
-    },
-  });
-
-  const verifyPaymentMutation = useMutation({
-    mutationFn: (paymentId: number) => paymentService.verifyPayment(paymentId),
-    onSuccess: (response) => {
-      setPaymentStatus("success");
-      toast.success("Payment verified successfully!");
-      setTimeout(() => {
-        onSuccess?.(response.data);
-      }, 2000);
-    },
-    onError: (error: any) => {
-      setPaymentStatus("idle");
-      const errorMessage = getErrorMessage(
-        error,
-        "Payment verification failed",
-      );
-      toast.error(errorMessage);
-    },
-  });
-
-  const completeDemoPaymentMutation = useMutation({
-    mutationFn: (paymentId: number) =>
-      paymentService.completeDemoPayment(paymentId),
-    onSuccess: (response) => {
-      setPaymentStatus("success");
-      toast.success("Demo payment completed successfully!");
-      setTimeout(() => {
-        onSuccess?.(response.data);
-      }, 2000);
-    },
-    onError: (error: any) => {
-      setPaymentStatus("idle");
-      const errorMessage = getErrorMessage(
-        error,
-        "Failed to complete demo payment",
-      );
       toast.error(errorMessage);
     },
   });
@@ -134,64 +77,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       return;
     }
 
-    if (selectedMethod === "telebirr" && !phoneNumber) {
-      toast.error("Please enter your phone number");
-      return;
-    }
-
     const paymentData = {
       amount,
       payment_method: selectedMethod,
-      user_phone: phoneNumber || undefined,
       return_url: `${window.location.origin}/user/bookings`,
     };
 
     createPaymentMutation.mutate(paymentData);
   };
 
-  const handleVerifyPayment = () => {
-    if (paymentResult?.id) {
-      setPaymentStatus("verifying");
-      if (selectedMethod === "demo") {
-        completeDemoPaymentMutation.mutate(paymentResult.id);
-      } else {
-        verifyPaymentMutation.mutate(paymentResult.id);
-      }
-    }
-  };
-
-  if (paymentStatus === "success") {
-    return (
-      <div className="text-center py-12 px-4 animate-in fade-in zoom-in duration-300">
-        <div className="w-20 h-20 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircleIcon className="h-12 w-12 text-success-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Payment Confirmed!
-        </h2>
-        <p className="text-gray-600 mb-8">
-          {selectedMethod === "demo"
-            ? "Your demo payment was successful. This booking is now confirmed for demonstration purposes."
-            : "Your payment has been verified successfully. Your booking is now confirmed."}
-        </p>
-        <div className="flex justify-center">
-          <div className="flex items-center text-primary-600 font-medium">
-            <LoadingSpinner size="sm" className="mr-2" />
-            Redirecting to your bookings...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const fees =
-    selectedMethod === "demo"
-      ? 0
-      : selectedMethod === "telebirr"
-        ? Math.min(Math.max(amount * 0.015 + 5, 5), 100)
-        : selectedMethod === "bank_transfer"
-          ? 10
-          : 0;
+  const fees = selectedMethod === "chapa" ? Math.round(amount * 0.025) : 0;
   const totalAmount = amount + fees;
 
   return (
@@ -264,20 +159,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           </div>
         </div>
 
-        {selectedMethod === "telebirr" && (
-          <div className="animate-in slide-in-from-top-2 duration-300">
-            <Input
-              label="Your Telebirr Phone Number"
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+2519..."
-              required
-              helperText="Enter the phone number you will use to pay"
-            />
-          </div>
-        )}
-
         <div className="flex space-x-4">
           <Button
             type="submit"
@@ -286,7 +167,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             className="flex-1"
           >
             <ArrowRightIcon className="h-4 w-4 mr-2" />
-            Proceed to Payment
+            {selectedMethod === "chapa"
+              ? "Pay with Chapa"
+              : "Proceed to Payment"}
           </Button>
           {onCancel && (
             <Button
@@ -304,120 +187,79 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       {/* Payment Instructions Modal */}
       <Modal
         isOpen={showConfirmation}
-        onClose={() =>
-          !verifyPaymentMutation.isPending &&
-          !completeDemoPaymentMutation.isPending &&
-          setShowConfirmation(false)
-        }
-        title={
-          selectedMethod === "demo"
-            ? "Demo Payment"
-            : selectedMethod === "telebirr"
-              ? "Telebirr Payment"
-              : "CBE Bank Transfer"
-        }
+        onClose={() => setShowConfirmation(false)}
+        title="Bank Transfer Instructions"
       >
         <div className="space-y-4">
-          {selectedMethod === "demo" ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-medium text-green-900 mb-3">
-                Demo Payment Ready
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-green-700">Amount:</span>
-                  <span className="font-bold text-green-900">
-                    {totalAmount.toLocaleString()} ETB
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-green-700">Transaction ID:</span>
-                  <span className="font-medium text-green-900 font-mono">
-                    {paymentResult?.gateway_response?.transaction_id}
-                  </span>
-                </div>
-                {paymentResult?.booking_reference && (
-                  <div className="flex justify-between">
-                    <span className="text-green-700">Reference:</span>
-                    <span className="font-medium text-green-900 font-mono">
-                      {paymentResult.booking_reference}
-                    </span>
-                  </div>
-                )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-3">
+              Bank Transfer Details
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-blue-700">Bank:</span>
+                <span className="font-medium text-blue-900">
+                  Commercial Bank of Ethiopia (CBE)
+                </span>
               </div>
-            </div>
-          ) : (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-3">
-                Transfer Details
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-blue-700">Recipient:</span>
-                  <span className="font-medium text-blue-900">
-                    East Hararghe Tour & Travel
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-700">
-                    {selectedMethod === "telebirr"
-                      ? "Merchant Number:"
-                      : "Account Number:"}
-                  </span>
-                  <span className="font-bold text-blue-900">
-                    {selectedMethod === "telebirr"
-                      ? "+251 91 123 4567"
-                      : "1000123456789"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-700">Amount:</span>
-                  <span className="font-bold text-blue-900">
-                    {totalAmount.toLocaleString()} ETB
-                  </span>
-                </div>
-                {paymentResult?.booking_reference && (
-                  <div className="flex justify-between">
-                    <span className="text-blue-700">Reference:</span>
-                    <span className="font-medium text-blue-900 font-mono">
-                      {paymentResult.booking_reference}
-                    </span>
-                  </div>
-                )}
+              <div className="flex justify-between">
+                <span className="text-blue-700">Account Name:</span>
+                <span className="font-medium text-blue-900">
+                  East Hararghe Tour & Travel
+                </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-blue-700">Account Number:</span>
+                <span className="font-bold text-blue-900 font-mono">
+                  1000123456789
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-blue-700">Amount to Transfer:</span>
+                <span className="font-bold text-blue-900 text-lg">
+                  {totalAmount.toLocaleString()} ETB
+                </span>
+              </div>
+              {paymentResult?.booking_reference && (
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Reference Number:</span>
+                  <span className="font-medium text-blue-900 font-mono">
+                    {paymentResult.booking_reference}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              {selectedMethod === "demo"
-                ? "This is a demo payment. Click 'Complete Payment' to simulate a successful transaction."
-                : "After making your payment, click the verify button below. The system will automatically confirm your payment."}
+            <h4 className="font-medium text-yellow-900 mb-2">
+              Important Instructions
+            </h4>
+            <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+              <li>Transfer the exact amount shown above to the account</li>
+              <li>Include the reference number in your transfer description</li>
+              <li>Keep your transfer receipt for verification</li>
+              <li>The company will verify your payment within 24 hours</li>
+              <li>You will receive a notification once verified</li>
+            </ul>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-700">
+              After completing your bank transfer, your booking will be in
+              "Pending Payment" status. The company will verify your payment and
+              update your booking status accordingly.
             </p>
           </div>
 
           <div className="flex space-x-4">
-            {selectedMethod === "demo" ? (
-              <Button
-                onClick={handleVerifyPayment}
-                loading={completeDemoPaymentMutation.isPending}
-                className="flex-1"
-                variant="primary"
-              >
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                Complete Demo Payment
-              </Button>
-            ) : (
-              <Button
-                onClick={handleVerifyPayment}
-                loading={verifyPaymentMutation.isPending}
-                className="flex-1"
-                variant="primary"
-              >
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                Verify Payment
-              </Button>
-            )}
+            <Button
+              onClick={() => setShowConfirmation(false)}
+              variant="outline"
+              className="flex-1"
+            >
+              Close
+            </Button>
           </div>
         </div>
       </Modal>

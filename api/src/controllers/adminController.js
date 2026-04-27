@@ -103,6 +103,30 @@ export class AdminController {
     }
   }
 
+  // Verify/Reject company with reason (NEW)
+  static async verifyCompanyWithReason(req, res) {
+    try {
+      const { companyId } = req.params;
+      const verificationData = req.body;
+
+      const result = await AdminService.verifyCompanyWithReason(
+        companyId,
+        verificationData,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.company,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   static async deleteCompany(req, res) {
     try {
       const { companyId } = req.params;
@@ -381,6 +405,47 @@ export class AdminController {
     }
   }
 
+  // User Update
+  static async updateUser(req, res) {
+    try {
+      const { userId } = req.params;
+      const userData = req.body;
+
+      const updatedUser = await AdminService.updateUser(userId, userData);
+
+      res.status(200).json({
+        success: true,
+        message: "User updated successfully",
+        data: updatedUser,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Reset User Password
+  static async resetUserPassword(req, res) {
+    try {
+      const { userId } = req.params;
+      const { password } = req.body;
+
+      await AdminService.resetUserPassword(userId, password);
+
+      res.status(200).json({
+        success: true,
+        message: "User password reset successfully",
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   // Company Creation
   static async createCompany(req, res) {
     try {
@@ -392,6 +457,91 @@ export class AdminController {
         success: true,
         message: "Company created successfully",
         data: newCompany,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Assign User to Company (NEW)
+  static async assignUserToCompany(req, res) {
+    try {
+      const { userId } = req.params;
+      const companyData = req.body;
+
+      const newCompany = await AdminService.assignUserToCompany(
+        userId,
+        companyData,
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "User assigned to company successfully",
+        data: newCompany,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Get Users Without Company (NEW)
+  static async getUsersWithoutCompany(req, res) {
+    try {
+      const users = await AdminService.getUsersWithoutCompany();
+
+      res.status(200).json({
+        success: true,
+        data: users,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Company Update
+  static async updateCompany(req, res) {
+    try {
+      const { companyId } = req.params;
+      const companyData = req.body;
+
+      const updatedCompany = await AdminService.updateCompany(
+        companyId,
+        companyData,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Company updated successfully",
+        data: updatedCompany,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Reset Company Password
+  static async resetCompanyPassword(req, res) {
+    try {
+      const { companyId } = req.params;
+      const { password } = req.body;
+
+      await AdminService.resetCompanyPassword(companyId, password);
+
+      res.status(200).json({
+        success: true,
+        message: "Company password reset successfully",
       });
     } catch (error) {
       res.status(400).json({

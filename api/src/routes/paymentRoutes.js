@@ -110,5 +110,6 @@ router.get(
 // Webhook endpoints (no authentication required)
 router.post("/telebirr/webhook", PaymentController.handleTelebirrWebhook);
 router.post("/chapa/webhook", PaymentController.handleChapaWebhook);
+router.get("/chapa/callback", PaymentController.handleChapaCallback);
 
 export default router;

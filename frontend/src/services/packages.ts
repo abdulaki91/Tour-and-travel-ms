@@ -22,6 +22,22 @@ export const packageService = {
     return response.data;
   },
 
+  async getMyPackages(
+    filters: PackageFilters = {},
+  ): Promise<PaginatedResponse<Package>> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(
+      `/packages/my/packages?${params.toString()}`,
+    );
+    return response.data;
+  },
+
   async getPackage(id: number): Promise<ApiResponse<Package>> {
     const response = await api.get(`/packages/${id}`);
     return response.data;

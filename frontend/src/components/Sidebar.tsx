@@ -119,6 +119,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             path: "/user/payments",
             color: "purple",
           },
+          {
+            icon: Star,
+            label: "My Reviews",
+            path: "/user/reviews",
+            color: "yellow",
+          },
         ];
     }
   };

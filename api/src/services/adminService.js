@@ -1,4 +1,5 @@
 import pool from "../config/database.js";
+import { hashPassword } from "../utils/bcrypt.js";
 
 export class AdminService {
   static async getDashboardStats() {
@@ -301,6 +302,81 @@ export class AdminService {
       success: true,
       message: "Company verification status updated successfully",
     };
+  }
+
+  // Verify/Reject company with reason (NEW)
+  static async verifyCompanyWithReason(companyId, verificationData) {
+    const { is_verified, rejection_reason } = verificationData;
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Get company details
+      const [companies] = await connection.execute(
+        `SELECT c.*, u.email, u.name 
+         FROM companies c
+         JOIN users u ON c.user_id = u.id
+         WHERE c.id = ?`,
+        [companyId],
+      );
+
+      if (companies.length === 0) {
+        throw new Error("Company not found");
+      }
+
+      const company = companies[0];
+
+      // Update verification status
+      await connection.execute(
+        "UPDATE companies SET is_verified = ? WHERE id = ?",
+        [is_verified, companyId],
+      );
+
+      // If rejected, create notification
+      if (!is_verified && rejection_reason) {
+        await connection.execute(
+          `INSERT INTO notifications (user_id, title, message, type) 
+           VALUES (?, ?, ?, ?)`,
+          [
+            company.user_id,
+            "Company Verification Rejected",
+            `Your company "${company.company_name}" verification was rejected. Reason: ${rejection_reason}`,
+            "error",
+          ],
+        );
+      }
+
+      // If approved, create notification
+      if (is_verified) {
+        await connection.execute(
+          `INSERT INTO notifications (user_id, title, message, type) 
+           VALUES (?, ?, ?, ?)`,
+          [
+            company.user_id,
+            "Company Verified Successfully",
+            `Congratulations! Your company "${company.company_name}" has been verified. You can now create packages and receive bookings.`,
+            "success",
+          ],
+        );
+      }
+
+      await connection.commit();
+
+      return {
+        success: true,
+        message: is_verified
+          ? "Company verified successfully"
+          : "Company verification rejected",
+        company,
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   static async deleteCompany(companyId) {
@@ -860,8 +936,7 @@ export class AdminService {
     const roleId = roles[0].id;
 
     // Hash password
-    const bcrypt = await import("bcrypt");
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // Create user
     const [result] = await pool.execute(
@@ -883,6 +958,117 @@ export class AdminService {
     delete user.password; // Remove password from response
 
     return user;
+  }
+
+  // User Update
+  static async updateUser(userId, userData) {
+    const { name, email, phone, role } = userData;
+
+    // Check if user exists
+    const [existingUser] = await pool.execute(
+      "SELECT id FROM users WHERE id = ?",
+      [userId],
+    );
+
+    if (existingUser.length === 0) {
+      throw new Error("User not found");
+    }
+
+    // Check if email is already taken by another user
+    if (email) {
+      const [emailCheck] = await pool.execute(
+        "SELECT id FROM users WHERE email = ? AND id != ?",
+        [email, userId],
+      );
+
+      if (emailCheck.length > 0) {
+        throw new Error("Email is already taken by another user");
+      }
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const params = [];
+
+    if (name !== undefined) {
+      updates.push("name = ?");
+      params.push(name);
+    }
+
+    if (email !== undefined) {
+      updates.push("email = ?");
+      params.push(email);
+    }
+
+    if (phone !== undefined) {
+      updates.push("phone = ?");
+      params.push(phone);
+    }
+
+    if (role !== undefined) {
+      // Get role ID
+      const [roles] = await pool.execute(
+        "SELECT id FROM roles WHERE name = ?",
+        [role],
+      );
+
+      if (roles.length === 0) {
+        throw new Error("Invalid role specified");
+      }
+
+      updates.push("role_id = ?");
+      params.push(roles[0].id);
+    }
+
+    if (updates.length === 0) {
+      throw new Error("No fields to update");
+    }
+
+    params.push(userId);
+
+    // Update user
+    await pool.execute(
+      `UPDATE users SET ${updates.join(", ")} WHERE id = ?`,
+      params,
+    );
+
+    // Get updated user
+    const [updatedUser] = await pool.execute(
+      `SELECT u.*, r.name as role_name 
+       FROM users u 
+       JOIN roles r ON u.role_id = r.id 
+       WHERE u.id = ?`,
+      [userId],
+    );
+
+    const user = updatedUser[0];
+    delete user.password; // Remove password from response
+
+    return user;
+  }
+
+  // Reset User Password
+  static async resetUserPassword(userId, newPassword) {
+    // Check if user exists
+    const [existingUser] = await pool.execute(
+      "SELECT id FROM users WHERE id = ?",
+      [userId],
+    );
+
+    if (existingUser.length === 0) {
+      throw new Error("User not found");
+    }
+
+    // Hash new password
+    const hashedPassword = await hashPassword(newPassword);
+
+    // Update password
+    await pool.execute("UPDATE users SET password = ? WHERE id = ?", [
+      hashedPassword,
+      userId,
+    ]);
+
+    return { success: true, message: "Password reset successfully" };
   }
 
   // Company Creation
@@ -939,8 +1125,7 @@ export class AdminService {
       const roleId = roles[0].id;
 
       // Hash password
-      const bcrypt = await import("bcrypt");
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await hashPassword(password);
 
       // Create user
       const [userResult] = await connection.execute(
@@ -953,7 +1138,7 @@ export class AdminService {
 
       // Create company
       const [companyResult] = await connection.execute(
-        `INSERT INTO companies (user_id, company_name, business_license, address, description, website, is_verified) 
+        `INSERT INTO companies (user_id, company_name, license_number, address, description, website, is_verified) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
@@ -985,6 +1170,300 @@ export class AdminService {
     } catch (error) {
       await connection.rollback();
       throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Assign User to Company (NEW)
+  static async assignUserToCompany(userId, companyData) {
+    const {
+      company_name,
+      business_license,
+      address,
+      description,
+      website,
+      is_verified = false,
+    } = companyData;
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check if user exists
+      const [users] = await connection.execute(
+        "SELECT id, role_id FROM users WHERE id = ?",
+        [userId],
+      );
+
+      if (users.length === 0) {
+        throw new Error("User not found");
+      }
+
+      // Check if user already has a company
+      const [existingCompany] = await connection.execute(
+        "SELECT id FROM companies WHERE user_id = ?",
+        [userId],
+      );
+
+      if (existingCompany.length > 0) {
+        throw new Error("User already has a company assigned");
+      }
+
+      // Check if company name already exists
+      const [existingCompanies] = await connection.execute(
+        "SELECT id FROM companies WHERE company_name = ?",
+        [company_name],
+      );
+
+      if (existingCompanies.length > 0) {
+        throw new Error("Company with this name already exists");
+      }
+
+      // Get COMPANY role ID
+      const [roles] = await connection.execute(
+        "SELECT id FROM roles WHERE name = 'COMPANY'",
+      );
+
+      if (roles.length === 0) {
+        throw new Error("Company role not found");
+      }
+
+      const companyRoleId = roles[0].id;
+
+      // Update user role to COMPANY
+      await connection.execute("UPDATE users SET role_id = ? WHERE id = ?", [
+        companyRoleId,
+        userId,
+      ]);
+
+      // Create company
+      const [companyResult] = await connection.execute(
+        `INSERT INTO companies (user_id, company_name, license_number, address, description, website, is_verified) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          company_name,
+          business_license,
+          address,
+          description,
+          website,
+          is_verified,
+        ],
+      );
+
+      // Get created company with user data
+      const [newCompany] = await connection.execute(
+        `SELECT 
+          c.*,
+          u.name as owner_name,
+          u.email,
+          u.phone,
+          u.is_active
+        FROM companies c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.id = ?`,
+        [companyResult.insertId],
+      );
+
+      await connection.commit();
+      return newCompany[0];
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Get Users Without Company (NEW)
+  static async getUsersWithoutCompany() {
+    const [users] = await pool.execute(
+      `SELECT 
+        u.id, u.name, u.email, u.phone, u.is_active, u.created_at,
+        r.name as role_name
+      FROM users u
+      JOIN roles r ON u.role_id = r.id
+      LEFT JOIN companies c ON u.id = c.user_id
+      WHERE c.id IS NULL AND r.name != 'ADMIN'
+      ORDER BY u.created_at DESC`,
+    );
+
+    return users;
+  }
+
+  // Company Update
+  static async updateCompany(companyId, companyData) {
+    const {
+      // User data
+      name,
+      email,
+      phone,
+      // Company data
+      company_name,
+      business_license,
+      address,
+      description,
+      website,
+    } = companyData;
+
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Check if company exists
+      const [existingCompany] = await connection.execute(
+        "SELECT user_id FROM companies WHERE id = ?",
+        [companyId],
+      );
+
+      if (existingCompany.length === 0) {
+        throw new Error("Company not found");
+      }
+
+      const userId = existingCompany[0].user_id;
+
+      // Update user data if provided
+      const userUpdates = [];
+      const userParams = [];
+
+      if (name !== undefined) {
+        userUpdates.push("name = ?");
+        userParams.push(name);
+      }
+
+      if (email !== undefined) {
+        // Check if email is already taken by another user
+        const [emailCheck] = await connection.execute(
+          "SELECT id FROM users WHERE email = ? AND id != ?",
+          [email, userId],
+        );
+
+        if (emailCheck.length > 0) {
+          throw new Error("Email is already taken by another user");
+        }
+
+        userUpdates.push("email = ?");
+        userParams.push(email);
+      }
+
+      if (phone !== undefined) {
+        userUpdates.push("phone = ?");
+        userParams.push(phone);
+      }
+
+      if (userUpdates.length > 0) {
+        userParams.push(userId);
+        await connection.execute(
+          `UPDATE users SET ${userUpdates.join(", ")} WHERE id = ?`,
+          userParams,
+        );
+      }
+
+      // Update company data if provided
+      const companyUpdates = [];
+      const companyParams = [];
+
+      if (company_name !== undefined) {
+        // Check if company name is already taken by another company
+        const [nameCheck] = await connection.execute(
+          "SELECT id FROM companies WHERE company_name = ? AND id != ?",
+          [company_name, companyId],
+        );
+
+        if (nameCheck.length > 0) {
+          throw new Error("Company name is already taken");
+        }
+
+        companyUpdates.push("company_name = ?");
+        companyParams.push(company_name);
+      }
+
+      if (business_license !== undefined) {
+        companyUpdates.push("business_license = ?");
+        companyParams.push(business_license);
+      }
+
+      if (address !== undefined) {
+        companyUpdates.push("address = ?");
+        companyParams.push(address);
+      }
+
+      if (description !== undefined) {
+        companyUpdates.push("description = ?");
+        companyParams.push(description);
+      }
+
+      if (website !== undefined) {
+        companyUpdates.push("website = ?");
+        companyParams.push(website);
+      }
+
+      if (companyUpdates.length > 0) {
+        companyParams.push(companyId);
+        await connection.execute(
+          `UPDATE companies SET ${companyUpdates.join(", ")} WHERE id = ?`,
+          companyParams,
+        );
+      }
+
+      if (userUpdates.length === 0 && companyUpdates.length === 0) {
+        throw new Error("No fields to update");
+      }
+
+      // Get updated company with user data
+      const [updatedCompany] = await connection.execute(
+        `SELECT 
+          c.*,
+          u.name as owner_name,
+          u.email,
+          u.phone,
+          u.is_active
+        FROM companies c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.id = ?`,
+        [companyId],
+      );
+
+      await connection.commit();
+      return updatedCompany[0];
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Reset Company User Password
+  static async resetCompanyPassword(companyId, newPassword) {
+    const connection = await pool.getConnection();
+
+    try {
+      // Get company user ID
+      const [company] = await connection.execute(
+        "SELECT user_id FROM companies WHERE id = ?",
+        [companyId],
+      );
+
+      if (company.length === 0) {
+        throw new Error("Company not found");
+      }
+
+      const userId = company[0].user_id;
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password
+      await connection.execute("UPDATE users SET password = ? WHERE id = ?", [
+        hashedPassword,
+        userId,
+      ]);
+
+      return { success: true, message: "Company password reset successfully" };
     } finally {
       connection.release();
     }

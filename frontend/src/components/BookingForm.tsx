@@ -2,12 +2,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tantml:invoke>
-<invoke name="strReplace">
-<parameter name="newStr">import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import type { Package } from "../types";
@@ -39,7 +33,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [step, setStep] = useState<"booking" | "summary" | "payment">("booking");
+  const [step, setStep] = useState<"booking" | "summary" | "payment">(
+    "booking",
+  );
   const [createdBooking, setCreatedBooking] = useState<any>(null);
 
   const {
@@ -94,13 +90,16 @@ const BookingForm: React.FC<BookingFormProps> = ({
       <div className="space-y-6">
         <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4">
           <p className="text-primary-800 text-sm font-medium">
-            Booking ID: <span className="font-bold">{createdBooking.booking_reference}</span>
+            Booking ID:{" "}
+            <span className="font-bold">
+              {createdBooking.booking_reference}
+            </span>
           </p>
           <p className="text-primary-600 text-xs">
             Please complete the payment to confirm your booking.
           </p>
         </div>
-        
+
         <PaymentForm
           bookingId={createdBooking.id}
           amount={createdBooking.total_amount}
@@ -148,12 +147,90 @@ const BookingForm: React.FC<BookingFormProps> = ({
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-medium text-blue-900 mb-2">
-            Confirm & Proceed
-          </h4>
+          <h4 className="font-medium text-blue-900 mb-2">Confirm & Proceed</h4>
           <p className="text-blue-700 text-sm">
-            By clicking confirm, you will create a pending booking. You will then be 
-            prompted to select your payment method (Telebirr, Chapa, or Bank Transfer).
+            By clicking confirm, you will create a pending booking. You will
+            then be prompted to select your payment method (Chapa Payment).
+          </p>
+        </div>
+
+        {/* Test Credentials for Demo */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h4 className="font-medium text-amber-900 mb-3 flex items-center">
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Test Payment Credentials
+          </h4>
+          <p className="text-amber-700 text-xs mb-3">
+            Use these test credentials to complete payment with Chapa:
+          </p>
+
+          <div className="space-y-3">
+            {/* Telebirr Test Credentials */}
+            <div className="bg-white rounded-lg p-3 border border-amber-200">
+              <p className="font-semibold text-amber-900 text-sm mb-2">
+                📱 Telebirr
+              </p>
+              <div className="space-y-1 text-xs text-gray-700">
+                <div className="flex justify-between">
+                  <span>Phone:</span>
+                  <span className="font-mono font-medium">0900123456</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>OTP:</span>
+                  <span className="font-mono font-medium">123456</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Awash Bank Test Credentials */}
+            <div className="bg-white rounded-lg p-3 border border-amber-200">
+              <p className="font-semibold text-amber-900 text-sm mb-2">
+                🏦 Awash Bank
+              </p>
+              <div className="space-y-1 text-xs text-gray-700">
+                <div className="flex justify-between">
+                  <span>Phone:</span>
+                  <span className="font-mono font-medium">0900112233</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>OTP:</span>
+                  <span className="font-mono font-medium">12345</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Alternative Test Numbers */}
+            <div className="bg-white rounded-lg p-3 border border-amber-200">
+              <p className="font-semibold text-amber-900 text-sm mb-2">
+                🔄 Alternative Test Numbers
+              </p>
+              <div className="space-y-1 text-xs text-gray-700">
+                <div className="flex justify-between">
+                  <span>Telebirr:</span>
+                  <span className="font-mono font-medium">0900881111</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Standard OTP:</span>
+                  <span className="font-mono font-medium">123456</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-amber-600 text-xs mt-3 italic">
+            💡 These are test credentials for demonstration purposes only.
           </p>
         </div>
 
@@ -193,7 +270,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </p>
           </div>
           <p className="mt-2 text-lg font-bold text-gray-900">
-            ${pkg.price} <span className="text-sm font-normal text-gray-500">per person</span>
+            ${pkg.price}{" "}
+            <span className="text-sm font-normal text-gray-500">
+              per person
+            </span>
           </p>
         </div>
       </div>

@@ -7,10 +7,12 @@ import {
   ClockIcon,
   CheckBadgeIcon,
   DocumentArrowDownIcon,
+  StarIcon,
 } from "@heroicons/react/24/outline";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import PaymentVerificationModal from "../ui/PaymentVerificationModal";
+import ReviewModal from "../ui/ReviewModal";
 import { ReceiptService } from "../../services/receiptService";
 import { toast } from "react-hot-toast";
 import type { BookingStatus } from "../../types";
@@ -26,6 +28,7 @@ interface Booking {
   created_at: string;
   booking_reference: string;
   // Flat fields from backend
+  package_id: number;
   package_title: string;
   package_location: string;
   duration_days: number;
@@ -38,6 +41,8 @@ interface Booking {
   customer_name?: string;
   customer_email?: string;
   customer_phone?: string;
+  // Review information
+  has_review?: boolean;
 }
 
 interface BookingCardProps {
@@ -52,6 +57,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
   getStatusVariant,
 }) => {
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
   const showVerifyButton =
@@ -60,6 +66,11 @@ const BookingCard: React.FC<BookingCardProps> = ({
     booking.status !== "cancelled";
 
   const showReceiptButton = booking.payment_status === "completed";
+
+  const showReviewButton =
+    booking.status === "completed" &&
+    booking.payment_status === "completed" &&
+    !booking.has_review;
 
   const handleDownloadReceipt = async () => {
     try {
@@ -178,6 +189,19 @@ const BookingCard: React.FC<BookingCardProps> = ({
                 </Button>
               )}
 
+              {showReviewButton && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  fullWidth
+                  className="shadow-md hover:shadow-lg border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                  onClick={() => setIsReviewModalOpen(true)}
+                >
+                  <StarIcon className="h-5 w-5 mr-2" />
+                  Write Review
+                </Button>
+              )}
+
               {showVerifyButton && (
                 <Button
                   size="lg"
@@ -232,6 +256,17 @@ const BookingCard: React.FC<BookingCardProps> = ({
           bookingReference={booking.booking_reference}
           amount={booking.total_amount}
           paymentMethod={booking.payment_method || "unknown"}
+        />
+      )}
+
+      {/* Review Modal */}
+      {showReviewButton && (
+        <ReviewModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          packageId={booking.package_id}
+          bookingId={booking.id}
+          packageTitle={booking.package_title}
         />
       )}
     </div>

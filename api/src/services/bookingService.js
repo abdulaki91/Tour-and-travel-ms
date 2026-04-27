@@ -197,12 +197,14 @@ export class BookingService {
         pay.status as payment_status,
         pay.payment_method,
         pay.transaction_reference,
-        pay.payment_date
+        pay.payment_date,
+        CASE WHEN r.id IS NOT NULL THEN true ELSE false END as has_review
       FROM bookings b
       JOIN packages p ON b.package_id = p.id
       JOIN companies c ON p.company_id = c.id
       JOIN users u ON b.user_id = u.id
       LEFT JOIN payments pay ON b.id = pay.booking_id AND pay.status IN ('pending', 'completed', 'failed', 'refunded')
+      LEFT JOIN reviews r ON b.id = r.booking_id
       WHERE ${whereClause}
       ORDER BY b.created_at DESC, b.id DESC
       LIMIT ? OFFSET ?`,
@@ -338,9 +340,52 @@ export class BookingService {
       throw new Error("Booking not found or unauthorized");
     }
 
+    // Get booking details for further processing
+    const booking = await this.getBookingById(id);
+
+    // If marking as completed, check if package should be deactivated
+    if (status === "completed" && booking) {
+      try {
+        // Check if package end date has passed or if this is the last active booking
+        const [packageInfo] = await pool.execute(
+          `SELECT 
+            p.id,
+            p.end_date,
+            p.is_active,
+            COUNT(CASE WHEN b.status IN ('pending', 'confirmed') THEN 1 END) as active_bookings
+           FROM packages p
+           LEFT JOIN bookings b ON p.id = b.package_id
+           WHERE p.id = ?
+           GROUP BY p.id`,
+          [booking.package_id],
+        );
+
+        if (packageInfo.length > 0) {
+          const pkg = packageInfo[0];
+          const endDate = new Date(pkg.end_date);
+          const now = new Date();
+
+          // Deactivate package if:
+          // 1. End date has passed, OR
+          // 2. No more active bookings (all completed or cancelled)
+          if (endDate < now || pkg.active_bookings === 0) {
+            await pool.execute(
+              "UPDATE packages SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+              [booking.package_id],
+            );
+            console.log(
+              `📦 Package ${booking.package_id} deactivated - trip completed`,
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error checking package status:", error);
+        // Don't throw error - booking status update was successful
+      }
+    }
+
     // If cancelling, restore available slots
     if (status === "cancelled") {
-      const booking = await this.getBookingById(id);
       if (booking) {
         await pool.execute(
           "UPDATE packages SET available_slots = available_slots + ? WHERE id = ?",

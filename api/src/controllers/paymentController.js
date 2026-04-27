@@ -1,5 +1,6 @@
 import { PaymentService } from "../services/paymentService.js";
 import { BookingService } from "../services/bookingService.js";
+import pool from "../config/database.js";
 import qrcode from "qrcode"; // Import qrcode library
 
 export class PaymentController {
@@ -243,6 +244,52 @@ export class PaymentController {
         success: false,
         message: error.message,
       });
+    }
+  }
+
+  // Chapa callback handler (GET request from Chapa redirect)
+  static async handleChapaCallback(req, res) {
+    try {
+      const { tx_ref, status, trx_ref } = req.query;
+
+      if (!tx_ref) {
+        return res.redirect(
+          `${process.env.FRONTEND_URL}/user/bookings?payment=error&message=Missing transaction reference`,
+        );
+      }
+
+      // Find payment by transaction reference
+      const [payments] = await pool.execute(
+        "SELECT id FROM payments WHERE transaction_reference = ? OR gateway_transaction_id = ?",
+        [tx_ref, tx_ref],
+      );
+
+      if (payments.length === 0) {
+        return res.redirect(
+          `${process.env.FRONTEND_URL}/user/bookings?payment=error&message=Payment not found`,
+        );
+      }
+
+      const paymentId = payments[0].id;
+
+      // Verify payment with Chapa
+      const verifiedPayment = await PaymentService.verifyPayment(paymentId);
+
+      // Redirect based on status
+      if (verifiedPayment.status === "completed") {
+        return res.redirect(
+          `${process.env.FRONTEND_URL}/user/bookings?payment=success&ref=${tx_ref}`,
+        );
+      } else {
+        return res.redirect(
+          `${process.env.FRONTEND_URL}/user/bookings?payment=failed&ref=${tx_ref}`,
+        );
+      }
+    } catch (error) {
+      console.error("Chapa callback error:", error);
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/user/bookings?payment=error&message=${encodeURIComponent(error.message)}`,
+      );
     }
   }
 

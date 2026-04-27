@@ -19,6 +19,7 @@ import UserBookings from "../pages/user/UserBookings";
 import BookingDetails from "../pages/user/BookingDetails";
 import PaymentPage from "../pages/user/PaymentPage";
 import PaymentHistory from "../pages/user/PaymentHistory";
+import UserReviews from "../pages/user/UserReviews";
 
 // Company Pages
 import CompanyDashboard from "../pages/company/CompanyDashboard";
@@ -93,6 +94,7 @@ const AppRoutes: React.FC = () => {
         <Route path="bookings/:id" element={<BookingDetails />} />
         <Route path="payment/:bookingId" element={<PaymentPage />} />
         <Route path="payments" element={<PaymentHistory />} />
+        <Route path="reviews" element={<UserReviews />} />
       </Route>
 
       {/* Company Dashboard Routes */}

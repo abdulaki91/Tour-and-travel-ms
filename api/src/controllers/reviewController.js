@@ -95,12 +95,9 @@ export class ReviewController {
 
   static async getCompanyReviews(req, res) {
     try {
-      // Use user_id as company_id (consistent with package controller)
-      const companyId = req.user.id;
-      const result = await ReviewService.getCompanyReviews(
-        companyId,
-        req.query,
-      );
+      // Use user_id directly (the user_id is the company owner's user ID)
+      const userId = req.user.id;
+      const result = await ReviewService.getCompanyReviews(userId, req.query);
 
       res.status(200).json({
         success: true,

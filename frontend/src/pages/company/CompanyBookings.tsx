@@ -4,34 +4,29 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   CalendarDaysIcon,
-  UserGroupIcon,
   CreditCardIcon,
   CheckCircleIcon,
   ClockIcon,
-  XCircleIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { bookingService } from "../../services/bookings";
+import type { BookingFilters } from "../../types";
 import BookingManagement from "../../components/company/BookingManagement";
 import Button from "../../components/ui/Button";
-import Badge from "../../components/ui/Badge";
 import Input from "../../components/ui/Input";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import EmptyState from "../../components/ui/EmptyState";
 import Pagination from "../../components/common/Pagination";
 
-interface BookingFilters {
+// Extended filters for the UI (includes search and date range)
+interface ExtendedBookingFilters extends BookingFilters {
   search?: string;
-  status?: string;
-  payment_status?: string;
   booking_date_from?: string;
   booking_date_to?: string;
-  page?: number;
-  limit?: number;
 }
 
 const CompanyBookings: React.FC = () => {
-  const [filters, setFilters] = useState<BookingFilters>({
+  const [filters, setFilters] = useState<ExtendedBookingFilters>({
     page: 1,
     limit: 10,
   });
@@ -52,7 +47,10 @@ const CompanyBookings: React.FC = () => {
     queryFn: () => bookingService.getCompanyBookingStats(),
   });
 
-  const handleFilterChange = (key: keyof BookingFilters, value: any) => {
+  const handleFilterChange = (
+    key: keyof ExtendedBookingFilters,
+    value: any,
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -69,51 +67,6 @@ const CompanyBookings: React.FC = () => {
       page: 1,
       limit: 10,
     });
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <ClockIcon className="h-4 w-4" />;
-      case "confirmed":
-        return <CheckCircleIcon className="h-4 w-4" />;
-      case "completed":
-        return <CheckCircleIcon className="h-4 w-4" />;
-      case "cancelled":
-        return <XCircleIcon className="h-4 w-4" />;
-      default:
-        return <ExclamationTriangleIcon className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "warning";
-      case "confirmed":
-        return "primary";
-      case "completed":
-        return "success";
-      case "cancelled":
-        return "error";
-      default:
-        return "gray";
-    }
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "success";
-      case "pending":
-        return "warning";
-      case "failed":
-        return "error";
-      case "refunded":
-        return "info";
-      default:
-        return "gray";
-    }
   };
 
   if (isLoading) {
@@ -237,7 +190,7 @@ const CompanyBookings: React.FC = () => {
               placeholder="Search by customer name, email, or booking reference"
               value={filters.search || ""}
               onChange={(e) => handleFilterChange("search", e.target.value)}
-              icon={MagnifyingGlassIcon}
+              leftIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
             />
 
             <div>
@@ -322,7 +275,7 @@ const CompanyBookings: React.FC = () => {
       {/* Bookings List */}
       {bookings.length === 0 ? (
         <EmptyState
-          icon={CalendarDaysIcon}
+          icon={<CalendarDaysIcon className="h-16 w-16" />}
           title="No bookings found"
           description="No bookings match your current filters. Try adjusting your search criteria."
         />

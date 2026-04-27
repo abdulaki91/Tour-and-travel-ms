@@ -1,26 +1,45 @@
-import pool from "../config/database.js";
+import { CompanyService } from "../services/companyService.js";
 
 export class CompanyController {
-  static async getProfile(req, res) {
+  // Register company
+  static async registerCompany(req, res) {
+    try {
+      const userId = req.user.id;
+      const companyData = req.body;
+
+      const company = await CompanyService.registerCompany(userId, companyData);
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Company registered successfully. Awaiting admin verification.",
+        data: company,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Get current user's company
+  static async getMyCompany(req, res) {
     try {
       const userId = req.user.id;
 
-      // Get company profile
-      const [companies] = await pool.execute(
-        "SELECT * FROM companies WHERE user_id = ?",
-        [userId],
-      );
+      const company = await CompanyService.getCompanyByUserId(userId);
 
-      if (companies.length === 0) {
+      if (!company) {
         return res.status(404).json({
           success: false,
-          message: "Company profile not found",
+          message: "Company not found",
         });
       }
 
       res.status(200).json({
         success: true,
-        data: companies[0],
+        data: company,
       });
     } catch (error) {
       res.status(500).json({
@@ -30,71 +49,40 @@ export class CompanyController {
     }
   }
 
-  static async updateProfile(req, res) {
+  // Update company profile
+  static async updateCompany(req, res) {
     try {
       const userId = req.user.id;
-      const {
-        company_name,
-        description,
-        address,
-        phone,
-        email,
-        website,
-        license_number,
-      } = req.body;
+      const companyData = req.body;
 
-      // Check if company exists
-      const [companies] = await pool.execute(
-        "SELECT id FROM companies WHERE user_id = ?",
-        [userId],
-      );
-
-      if (companies.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "Company profile not found",
-        });
-      }
-
-      const companyId = companies[0].id;
-
-      // Update company
-      await pool.execute(
-        `UPDATE companies 
-         SET company_name = COALESCE(?, company_name),
-             description = COALESCE(?, description),
-             address = COALESCE(?, address),
-             phone = COALESCE(?, phone),
-             email = COALESCE(?, email),
-             website = COALESCE(?, website),
-             license_number = COALESCE(?, license_number),
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [
-          company_name,
-          description,
-          address,
-          phone,
-          email,
-          website,
-          license_number,
-          companyId,
-        ],
-      );
-
-      // Get updated company
-      const [updatedCompanies] = await pool.execute(
-        "SELECT * FROM companies WHERE id = ?",
-        [companyId],
-      );
+      const company = await CompanyService.updateCompany(userId, companyData);
 
       res.status(200).json({
         success: true,
-        message: "Company profile updated successfully",
-        data: updatedCompanies[0],
+        message: "Company updated successfully",
+        data: company,
       });
     } catch (error) {
       res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  // Get company statistics
+  static async getCompanyStats(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const stats = await CompanyService.getCompanyStats(userId);
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      res.status(500).json({
         success: false,
         message: error.message,
       });

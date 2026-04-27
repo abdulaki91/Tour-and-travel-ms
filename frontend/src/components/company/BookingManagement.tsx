@@ -13,6 +13,7 @@ import {
   MapPinIcon,
   DocumentArrowDownIcon,
   ShieldCheckIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { bookingService } from "../../services/bookings";
 import { ReceiptService } from "../../services/receiptService";
@@ -35,7 +36,6 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showRefundModal, setShowRefundModal] = useState(false);
   const [showPaymentVerificationModal, setShowPaymentVerificationModal] =
     useState(false);
   const queryClient = useQueryClient();
@@ -66,22 +66,6 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
       toast.error(
         error.response?.data?.message || "Failed to send confirmation",
       );
-    },
-  });
-
-  const refundMutation = useMutation({
-    mutationFn: (id: number) => bookingService.refundBooking(id),
-    onSuccess: (response) => {
-      toast.success(
-        `Booking refunded successfully! ${response.data.slots_restored} slots restored.`,
-      );
-      queryClient.invalidateQueries({ queryKey: ["company-bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["company-booking-stats"] });
-      onUpdate?.();
-      setShowRefundModal(false);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to process refund");
     },
   });
 
@@ -180,14 +164,6 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
 
   const handleCompleteBooking = () => {
     updateStatusMutation.mutate({ id: booking.id, status: "completed" });
-  };
-
-  const handleSendConfirmation = () => {
-    sendConfirmationMutation.mutate(booking.id);
-  };
-
-  const handleRefundBooking = () => {
-    setShowRefundModal(true);
   };
 
   const handleMarkPaid = () => {
@@ -297,9 +273,19 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
               </span>
             </div>
             {booking.payment_method && (
-              <span className="text-xs text-gray-600 capitalize">
-                via {booking.payment_method.replace("_", " ")}
-              </span>
+              <div className="flex items-center space-x-2">
+                {booking.payment_method === "chapa" && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                    <CheckCircleIcon className="h-3 w-3 mr-1" />
+                    Chapa Payment
+                  </span>
+                )}
+                {booking.payment_method !== "chapa" && (
+                  <span className="text-xs text-gray-600 capitalize">
+                    via {booking.payment_method.replace("_", " ")}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -352,16 +338,6 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={handleSendConfirmation}
-                    loading={sendConfirmationMutation.isPending}
-                    className="flex items-center space-x-1"
-                  >
-                    <EnvelopeIcon className="h-4 w-4" />
-                    <span>Send Confirmation</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
                     onClick={handleCompleteBooking}
                     loading={updateStatusMutation.isPending}
                     className="flex items-center space-x-1 text-green-600 hover:text-green-700"
@@ -389,31 +365,14 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
                     <ClockIcon className="h-4 w-4" />
                     <span>Reactivate</span>
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleSendConfirmation}
-                    loading={sendConfirmationMutation.isPending}
-                    className="flex items-center space-x-1"
-                  >
-                    <EnvelopeIcon className="h-4 w-4" />
-                    <span>Send Update</span>
-                  </Button>
                 </>
               )}
 
               {booking.status === "completed" && (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleSendConfirmation}
-                    loading={sendConfirmationMutation.isPending}
-                    className="flex items-center space-x-1"
-                  >
-                    <EnvelopeIcon className="h-4 w-4" />
-                    <span>Send Receipt</span>
-                  </Button>
+                  <span className="text-sm text-green-600 font-medium px-3 py-2 bg-green-100 rounded-lg">
+                    ✓ Trip Completed
+                  </span>
                 </>
               )}
             </div>
@@ -445,30 +404,43 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Payment Verification Button for pending payments */}
-                {booking.payment_status === "pending" && (
-                  <Button
-                    size="sm"
-                    onClick={() => setShowPaymentVerificationModal(true)}
-                    className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <ShieldCheckIcon className="h-4 w-4" />
-                    <span>Verify Payment</span>
-                  </Button>
-                )}
+                {/* Payment Verification - Only for non-Chapa payments or failed payments */}
+                {booking.payment_status === "pending" &&
+                  booking.payment_method !== "chapa" && (
+                    <Button
+                      size="sm"
+                      onClick={() => setShowPaymentVerificationModal(true)}
+                      className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <ShieldCheckIcon className="h-4 w-4" />
+                      <span>Verify Payment</span>
+                    </Button>
+                  )}
 
-                {/* Quick Mark Paid for pending payments */}
-                {booking.payment_status === "pending" && (
-                  <Button
-                    size="sm"
-                    onClick={handleMarkPaid}
-                    loading={updatePaymentMutation.isPending}
-                    className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircleIcon className="h-4 w-4" />
-                    <span>Quick Confirm</span>
-                  </Button>
-                )}
+                {/* Info message for Chapa payments */}
+                {booking.payment_status === "pending" &&
+                  booking.payment_method === "chapa" && (
+                    <div className="flex items-center space-x-2 px-3 py-2 bg-blue-100 rounded-lg">
+                      <ClockIcon className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm text-blue-800 font-medium">
+                        Chapa payment - Auto-verified on completion
+                      </span>
+                    </div>
+                  )}
+
+                {/* Quick Mark Paid - Only for non-Chapa pending payments */}
+                {booking.payment_status === "pending" &&
+                  booking.payment_method !== "chapa" && (
+                    <Button
+                      size="sm"
+                      onClick={handleMarkPaid}
+                      loading={updatePaymentMutation.isPending}
+                      className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircleIcon className="h-4 w-4" />
+                      <span>Quick Confirm</span>
+                    </Button>
+                  )}
 
                 {/* Show Download Receipt for completed payments */}
                 {booking.payment_status === "completed" && (
@@ -483,25 +455,10 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
                   </Button>
                 )}
 
-                {/* Only show Process Refund for completed payments and non-completed bookings */}
-                {booking.payment_status === "completed" &&
-                  booking.status !== "completed" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleRefundBooking}
-                      loading={refundMutation.isPending}
-                      className="flex items-center space-x-1 text-orange-600 hover:text-orange-700 border-orange-300"
-                    >
-                      <XCircleIcon className="h-4 w-4" />
-                      <span>Process Refund</span>
-                    </Button>
-                  )}
-
                 {/* Show appropriate message for non-refundable payments */}
                 {booking.payment_status === "failed" && (
                   <span className="text-sm text-gray-500 italic px-3 py-2 bg-gray-100 rounded-lg">
-                    No refund needed (payment failed)
+                    Payment failed
                   </span>
                 )}
 
@@ -513,30 +470,32 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
 
                 {!booking.payment_status && (
                   <span className="text-sm text-gray-500 italic px-3 py-2 bg-gray-100 rounded-lg">
-                    No payment to refund
+                    No payment initiated
                   </span>
                 )}
 
                 {booking.status === "completed" &&
                   booking.payment_status === "completed" && (
                     <span className="text-sm text-blue-600 font-medium px-3 py-2 bg-blue-100 rounded-lg">
-                      Trip completed - Contact support for refunds
+                      ✓ Trip completed
                     </span>
                   )}
 
-                {/* Payment reminder for non-refunded payments */}
-                {booking.payment_status !== "refunded" &&
-                  booking.payment_status !== "completed" && (
+                {/* Payment reminder for pending payments */}
+                {booking.payment_status === "pending" &&
+                  booking.payment_method === "chapa" && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        toast.success("Payment reminder sent to customer");
+                        toast.info(
+                          "Customer will receive automatic payment reminder",
+                        );
                       }}
                       className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 border-blue-300"
                     >
                       <EnvelopeIcon className="h-4 w-4" />
-                      <span>Send Payment Reminder</span>
+                      <span>Payment Reminder</span>
                     </Button>
                   )}
               </div>
@@ -669,9 +628,18 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
                 {booking.payment_method && (
                   <div>
                     <p className="text-sm font-medium text-green-900">Method</p>
-                    <p className="text-sm text-green-700 capitalize">
-                      {booking.payment_method.replace("_", " ")}
-                    </p>
+                    {booking.payment_method === "chapa" ? (
+                      <div className="flex items-center space-x-2">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                          <CheckCircleIcon className="h-3 w-3 mr-1" />
+                          Chapa Payment (Auto-verified)
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-green-700 capitalize">
+                        {booking.payment_method.replace("_", " ")}
+                      </p>
+                    )}
                   </div>
                 )}
                 {booking.transaction_reference && (
@@ -761,117 +729,6 @@ const BookingManagement: React.FC<BookingManagementProps> = ({
               className="flex-1"
             >
               Keep Booking
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Refund Booking Modal */}
-      <Modal
-        isOpen={showRefundModal}
-        onClose={() => setShowRefundModal(false)}
-        title="Process Refund"
-      >
-        <div className="space-y-4">
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <div className="flex items-center space-x-2">
-              <XCircleIcon className="h-5 w-5 text-orange-600" />
-              <p className="text-orange-800 font-medium">
-                Process refund for this booking?
-              </p>
-            </div>
-
-            {/* Refund Eligibility Check */}
-            {booking.payment_status !== "completed" && (
-              <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
-                <p className="text-red-800 text-sm font-medium">
-                  ⚠️ Cannot process refund
-                </p>
-                <p className="text-red-700 text-sm mt-1">
-                  Payment status is "{booking.payment_status}". Only completed
-                  payments can be refunded.
-                </p>
-              </div>
-            )}
-
-            {booking.status === "completed" && (
-              <div className="mt-3 p-3 bg-red-100 border border-red-200 rounded-lg">
-                <p className="text-red-800 text-sm font-medium">
-                  ⚠️ Cannot process refund
-                </p>
-                <p className="text-red-700 text-sm mt-1">
-                  Booking is completed (trip has finished). Completed bookings
-                  cannot be refunded through this system.
-                </p>
-              </div>
-            )}
-
-            {booking.payment_status === "completed" &&
-              booking.status !== "completed" && (
-                <>
-                  <p className="text-orange-700 text-sm mt-2">
-                    <strong>Refund Process:</strong> This will cancel the
-                    booking and refund the payment.
-                  </p>
-                  <ul className="text-orange-700 text-sm mt-2 ml-4 list-disc">
-                    <li>Cancel the booking for {booking.customer_name}</li>
-                    <li>
-                      Change booking status from "{booking.status}" to
-                      "cancelled"
-                    </li>
-                    <li>Mark payment as "refunded"</li>
-                    <li>
-                      Restore {booking.number_of_people} available slots to the
-                      package
-                    </li>
-                    <li>Send refund notification to customer</li>
-                  </ul>
-                  <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
-                    <p className="text-orange-800 text-sm font-medium">
-                      Refund Details:
-                    </p>
-                    <p className="text-orange-700 text-sm">
-                      Amount: {formatCurrency(booking.total_amount)}
-                    </p>
-                    <p className="text-orange-700 text-sm">
-                      Method:{" "}
-                      {booking.payment_method
-                        ? booking.payment_method.replace("_", " ")
-                        : "Manual approval"}
-                    </p>
-                    <p className="text-orange-700 text-sm">
-                      Processing time: 3-5 business days
-                    </p>
-                  </div>
-                </>
-              )}
-          </div>
-
-          <div className="flex space-x-4">
-            {booking.payment_status === "completed" &&
-            booking.status !== "completed" ? (
-              <Button
-                onClick={() => refundMutation.mutate(booking.id)}
-                loading={refundMutation.isPending}
-                variant="outline"
-                className="flex-1 text-orange-600 border-orange-300 hover:bg-orange-50"
-              >
-                Yes, Process Refund
-              </Button>
-            ) : (
-              <Button
-                disabled
-                variant="outline"
-                className="flex-1 text-gray-400 border-gray-300 cursor-not-allowed"
-              >
-                Cannot Process Refund
-              </Button>
-            )}
-            <Button
-              onClick={() => setShowRefundModal(false)}
-              className="flex-1"
-            >
-              Cancel
             </Button>
           </div>
         </div>

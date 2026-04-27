@@ -17,6 +17,10 @@ interface Package {
   average_rating: number;
   review_count: number;
   images?: string[];
+  package_status?: string;
+  booking_count?: number;
+  active_booking_count?: number;
+  completed_booking_count?: number;
 }
 
 interface PackageTableRowProps {
@@ -68,9 +72,13 @@ const PackageTableRow: React.FC<PackageTableRowProps> = ({
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant={pkg.is_active ? "success" : "warning"}>
-          {pkg.is_active ? "Active" : "Inactive"}
-        </Badge>
+        {pkg.package_status === "completed" ? (
+          <Badge variant="info">Completed</Badge>
+        ) : (
+          <Badge variant={pkg.is_active ? "success" : "warning"}>
+            {pkg.is_active ? "Active" : "Inactive"}
+          </Badge>
+        )}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm font-bold text-gray-900">
@@ -86,43 +94,44 @@ const PackageTableRow: React.FC<PackageTableRowProps> = ({
           {pkg.review_count} reviews
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        <div className="flex justify-end space-x-2">
-          <Link to={`/packages/${pkg.id}`}>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="hover:bg-primary-50 hover:text-primary-600"
-            >
-              <EyeIcon className="h-4 w-4" />
-            </Button>
+      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium w-64">
+        <div className="flex justify-end items-center gap-2">
+          {/* View Button */}
+          <Link to={`/packages/${pkg.id}`} title="View Package">
+            <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-200">
+              <EyeIcon className="h-5 w-5" />
+            </button>
           </Link>
-          <Link to={`/company/packages/${pkg.id}/edit`}>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="hover:bg-secondary-50 hover:text-secondary-600"
-            >
-              <PencilIcon className="h-4 w-4" />
-            </Button>
+
+          {/* Edit Button */}
+          <Link to={`/company/packages/${pkg.id}/edit`} title="Edit Package">
+            <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-200">
+              <PencilIcon className="h-5 w-5" />
+            </button>
           </Link>
-          <Button
-            size="sm"
-            variant="ghost"
+
+          {/* Toggle Status Button */}
+          <button
             onClick={() => onToggleStatus(pkg.id)}
-            loading={isToggling}
-            className="hover:bg-warning-50 hover:text-warning-600"
+            disabled={isToggling}
+            title={pkg.is_active ? "Deactivate" : "Activate"}
+            className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors border ${
+              pkg.is_active
+                ? "text-orange-700 bg-orange-50 border-orange-200 hover:bg-orange-100"
+                : "text-green-700 bg-green-50 border-green-200 hover:bg-green-100"
+            } ${isToggling ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {pkg.is_active ? "Deactivate" : "Activate"}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
+          </button>
+
+          {/* Delete Button */}
+          <button
             onClick={() => onDelete(pkg.id, pkg.title)}
-            className="hover:bg-error-50 hover:text-error-600"
+            title="Delete Package"
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
           >
-            <TrashIcon className="h-4 w-4" />
-          </Button>
+            <TrashIcon className="h-5 w-5" />
+          </button>
         </div>
       </td>
     </tr>

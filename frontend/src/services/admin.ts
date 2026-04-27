@@ -240,6 +240,31 @@ export const adminService = {
     return response.data;
   },
 
+  // User update
+  async updateUser(
+    userId: number,
+    userData: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+    },
+  ): Promise<ApiResponse<User>> {
+    const response = await api.put(`/admin/users/${userId}`, userData);
+    return response.data;
+  },
+
+  // Reset user password
+  async resetUserPassword(
+    userId: number,
+    password: string,
+  ): Promise<ApiResponse<void>> {
+    const response = await api.post(`/admin/users/${userId}/reset-password`, {
+      password,
+    });
+    return response.data;
+  },
+
   // Company creation
   async createCompany(companyData: {
     name: string;
@@ -254,6 +279,64 @@ export const adminService = {
     is_verified?: boolean;
   }): Promise<ApiResponse<Company>> {
     const response = await api.post("/admin/companies", companyData);
+    return response.data;
+  },
+
+  // Assign user to company (NEW)
+  async assignUserToCompany(
+    userId: number,
+    companyData: {
+      company_name: string;
+      business_license?: string;
+      address?: string;
+      description?: string;
+      website?: string;
+      is_verified?: boolean;
+    },
+  ): Promise<ApiResponse<Company>> {
+    const response = await api.post(
+      `/admin/companies/assign/${userId}`,
+      companyData,
+    );
+    return response.data;
+  },
+
+  // Get users without company (NEW)
+  async getUsersWithoutCompany(): Promise<ApiResponse<User[]>> {
+    const response = await api.get("/admin/users/without-company");
+    return response.data;
+  },
+
+  // Company update
+  async updateCompany(
+    companyId: number,
+    companyData: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      company_name?: string;
+      business_license?: string;
+      address?: string;
+      description?: string;
+      website?: string;
+    },
+  ): Promise<ApiResponse<Company>> {
+    const response = await api.put(
+      `/admin/companies/${companyId}`,
+      companyData,
+    );
+    return response.data;
+  },
+
+  // Reset company password
+  async resetCompanyPassword(
+    companyId: number,
+    password: string,
+  ): Promise<ApiResponse<void>> {
+    const response = await api.post(
+      `/admin/companies/${companyId}/reset-password`,
+      { password },
+    );
     return response.data;
   },
 };

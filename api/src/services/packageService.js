@@ -294,8 +294,10 @@ export class PackageService {
       `SELECT 
         p.*,
         COALESCE(AVG(r.rating), 0) as average_rating,
-        COUNT(r.id) as review_count,
-        COUNT(DISTINCT b.id) as booking_count
+        COUNT(DISTINCT r.id) as review_count,
+        COUNT(DISTINCT b.id) as booking_count,
+        COUNT(DISTINCT CASE WHEN b.status IN ('pending', 'confirmed') THEN b.id END) as active_booking_count,
+        COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.id END) as completed_booking_count
       FROM packages p
       LEFT JOIN reviews r ON p.id = r.package_id
       LEFT JOIN bookings b ON p.id = b.package_id
@@ -314,14 +316,33 @@ export class PackageService {
 
     const total = countResult[0].total;
 
-    const formattedPackages = packages.map((pkg) => ({
-      ...pkg,
-      itinerary: pkg.itinerary ? JSON.parse(pkg.itinerary) : null,
-      images: pkg.images ? JSON.parse(pkg.images) : [],
-      average_rating: parseFloat(pkg.average_rating),
-      review_count: parseInt(pkg.review_count),
-      booking_count: parseInt(pkg.booking_count),
-    }));
+    const formattedPackages = packages.map((pkg) => {
+      // Determine package status
+      let packageStatus = "active";
+      const now = new Date();
+      const endDate = new Date(pkg.end_date);
+
+      // Package is completed if:
+      // 1. End date has passed AND has bookings, OR
+      // 2. Has bookings and all are completed (no active bookings)
+      if (pkg.booking_count > 0) {
+        if (endDate < now || pkg.active_booking_count === 0) {
+          packageStatus = "completed";
+        }
+      }
+
+      return {
+        ...pkg,
+        itinerary: pkg.itinerary ? JSON.parse(pkg.itinerary) : null,
+        images: pkg.images ? JSON.parse(pkg.images) : [],
+        average_rating: parseFloat(pkg.average_rating),
+        review_count: parseInt(pkg.review_count),
+        booking_count: parseInt(pkg.booking_count),
+        active_booking_count: parseInt(pkg.active_booking_count),
+        completed_booking_count: parseInt(pkg.completed_booking_count),
+        package_status: packageStatus,
+      };
+    });
 
     return {
       items: formattedPackages,
