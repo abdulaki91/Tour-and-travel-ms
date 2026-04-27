@@ -239,7 +239,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               <li>Transfer the exact amount shown above to the account</li>
               <li>Include the reference number in your transfer description</li>
               <li>Keep your transfer receipt for verification</li>
-              <li>The company will verify your payment within 24 hours</li>
+              <li>
+                The company will manually verify your payment within 24 hours
+              </li>
               <li>You will receive a notification once verified</li>
             </ul>
           </div>
@@ -247,8 +249,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <p className="text-sm text-gray-700">
               After completing your bank transfer, your booking will be in
-              "Pending Payment" status. The company will verify your payment and
-              update your booking status accordingly.
+              "Pending Payment" status. The company will manually verify your
+              payment and update your booking status accordingly.
             </p>
           </div>
 

@@ -190,4 +190,80 @@ export class NotificationService {
 
     return result.affectedRows;
   }
+
+  // ============================================
+  // ADMIN NOTIFICATION METHODS
+  // ============================================
+
+  /**
+   * Notify all admin users about an event
+   */
+  static async notifyAllAdmins(notificationData) {
+    const { title, message, type } = notificationData;
+
+    // Get all admin user IDs
+    const [admins] = await pool.execute(
+      `SELECT u.id FROM users u 
+       JOIN roles r ON u.role_id = r.id 
+       WHERE r.name = 'ADMIN' AND u.is_active = true`,
+    );
+
+    if (admins.length === 0) {
+      console.warn("No active admin users found to notify");
+      return [];
+    }
+
+    // Create notifications for all admins
+    const notifications = [];
+    for (const admin of admins) {
+      try {
+        const notification = await this.createNotification(admin.id, {
+          title,
+          message,
+          type,
+        });
+        notifications.push(notification);
+      } catch (error) {
+        console.error(
+          `Failed to create notification for admin ${admin.id}:`,
+          error,
+        );
+      }
+    }
+
+    return notifications;
+  }
+
+  /**
+   * Notify admins about new company registration
+   */
+  static async notifyAdminsNewCompanyRegistration(companyData) {
+    return await this.notifyAllAdmins({
+      title: "New Company Registration",
+      message: `${companyData.company_name} has registered and is awaiting verification. Owner: ${companyData.owner_name} (${companyData.owner_email})`,
+      type: "info",
+    });
+  }
+
+  /**
+   * Notify admins about suspicious activity
+   */
+  static async notifyAdminsSuspiciousActivity(activityData) {
+    return await this.notifyAllAdmins({
+      title: "Suspicious Activity Detected",
+      message: `${activityData.description}. User: ${activityData.user_email || "Unknown"}`,
+      type: "error",
+    });
+  }
+
+  /**
+   * Notify admins about system errors
+   */
+  static async notifyAdminsSystemError(errorData) {
+    return await this.notifyAllAdmins({
+      title: "System Error",
+      message: `${errorData.error_type}: ${errorData.message}. Location: ${errorData.location}`,
+      type: "error",
+    });
+  }
 }

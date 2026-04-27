@@ -47,6 +47,8 @@ const notificationQueryValidation = Joi.object({
   type: Joi.string().allow("").optional(),
   is_read: Joi.string().allow("").optional(),
   user_id: Joi.number().integer().positive().optional(),
+  sort_by: Joi.string().valid("created_at").default("created_at").optional(),
+  sort_order: Joi.string().valid("asc", "desc").default("desc").optional(),
 });
 
 const bulkNotificationValidation = Joi.object({
@@ -58,16 +60,49 @@ const bulkNotificationValidation = Joi.object({
 });
 
 const settingsValidation = Joi.object({
+  // General Settings
   site_name: Joi.string().max(255).optional(),
   site_description: Joi.string().max(1000).optional(),
   contact_email: Joi.string().email().optional(),
   contact_phone: Joi.string().max(20).optional(),
+
+  // System Settings
   maintenance_mode: Joi.boolean().optional(),
   registration_enabled: Joi.boolean().optional(),
+  booking_enabled: Joi.boolean().optional(),
+  payment_enabled: Joi.boolean().optional(),
+
+  // Notification Settings
   email_notifications: Joi.boolean().optional(),
   sms_notifications: Joi.boolean().optional(),
+  push_notifications: Joi.boolean().optional(),
+
+  // Content Settings
   max_upload_size: Joi.number().integer().min(1).max(100).optional(),
   allowed_file_types: Joi.array().items(Joi.string()).optional(),
+  max_images_per_package: Joi.number().integer().min(1).max(50).optional(),
+
+  // Booking Settings
+  min_booking_advance_days: Joi.number().integer().min(0).max(365).optional(),
+  max_booking_advance_days: Joi.number().integer().min(1).max(730).optional(),
+  cancellation_deadline_hours: Joi.number()
+    .integer()
+    .min(0)
+    .max(720)
+    .optional(),
+  auto_confirm_bookings: Joi.boolean().optional(),
+
+  // Payment Settings
+  currency: Joi.string().max(10).optional(),
+  payment_gateway: Joi.string().max(50).optional(),
+  commission_rate: Joi.number().min(0).max(100).optional(),
+  refund_processing_days: Joi.number().integer().min(1).max(90).optional(),
+
+  // Security Settings
+  session_timeout_minutes: Joi.number().integer().min(5).max(1440).optional(),
+  max_login_attempts: Joi.number().integer().min(1).max(20).optional(),
+  password_min_length: Joi.number().integer().min(6).max(32).optional(),
+  require_email_verification: Joi.boolean().optional(),
 });
 
 const createUserValidation = Joi.object({

@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
+import { authService } from "../services/auth";
 import toast from "react-hot-toast";
 
 interface Notification {
@@ -47,31 +48,32 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { user, token } = useAuth();
+  const { user } = useAuth();
+  const token = authService.getToken();
 
   const fetchInitialNotifications = useCallback(async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/notifications?limit=10`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const apiUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:5002/api";
+      const response = await fetch(`${apiUrl}/notifications?limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications || []);
+        const result = await response.json();
+        const notifications = result.data?.notifications || [];
+        setNotifications(notifications);
 
         // Calculate unread count from fetched notifications
-        const unread = (data.notifications || []).filter(
+        const unread = notifications.filter(
           (n: Notification) => !n.is_read,
         ).length;
         setUnreadCount(unread);
         console.log(
           "📊 Initial notifications loaded:",
-          data.notifications?.length,
+          notifications.length,
           "Unread:",
           unread,
         );
@@ -119,20 +121,26 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   useEffect(() => {
     if (user && token) {
       console.log("🔌 Initializing socket connection...");
+      console.log("🔌 API URL:", import.meta.env.VITE_API_URL);
+      console.log("🔌 User:", user);
 
-      const newSocket = io(
-        import.meta.env.VITE_API_URL || "http://localhost:5002",
-        {
-          auth: {
-            token: token,
-          },
-          transports: ["websocket", "polling"],
+      // Remove /api suffix if present for socket connection
+      const socketUrl = (
+        import.meta.env.VITE_API_URL || "http://localhost:5002"
+      ).replace(/\/api$/, "");
+
+      console.log("🔌 Socket URL:", socketUrl);
+
+      const newSocket = io(socketUrl, {
+        auth: {
+          token: token,
         },
-      );
+        transports: ["websocket", "polling"],
+      });
 
       // Connection event handlers
       newSocket.on("connect", () => {
-        console.log("🔌 Socket connected successfully");
+        console.log("✅ Socket connected successfully");
         setIsConnected(true);
 
         // Get initial unread count and notifications
@@ -143,30 +151,38 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       });
 
       newSocket.on("disconnect", () => {
-        console.log("🔌 Socket disconnected");
+        console.log("❌ Socket disconnected");
         setIsConnected(false);
       });
 
       newSocket.on("connect_error", (error) => {
-        console.error("🔌 Socket connection error:", error);
+        console.error("❌ Socket connection error:", error);
+        console.error("❌ Error message:", error.message);
         setIsConnected(false);
       });
 
       // Connection confirmation
       newSocket.on("connection_confirmed", (data) => {
         console.log("🔌 Connection confirmed:", data);
-        toast.success(`Welcome back, ${data.userName}!`, {
-          duration: 3000,
-          position: "top-right",
-        });
+        // Toast removed - no need to show welcome message on every page refresh
       });
 
       // Notification event handlers
       newSocket.on("new_notification", (notification: Notification) => {
-        console.log("🔔 New notification received:", notification);
+        console.log("🔔 NEW NOTIFICATION RECEIVED:", notification);
+        console.log("🔔 Current unreadCount before update:", unreadCount);
 
-        setNotifications((prev) => [notification, ...prev]);
-        setUnreadCount((prev) => prev + 1);
+        setNotifications((prev) => {
+          const updated = [notification, ...prev];
+          console.log("🔔 Updated notifications array length:", updated.length);
+          return updated;
+        });
+
+        setUnreadCount((prev) => {
+          const newCount = prev + 1;
+          console.log("🔔 Updated unreadCount:", prev, "→", newCount);
+          return newCount;
+        });
 
         // Show toast notification
         toast.success(notification.title, {
@@ -180,7 +196,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       });
 
       newSocket.on("unread_count_updated", (data) => {
-        console.log("📊 Unread count updated:", data.count);
+        console.log("📊 UNREAD COUNT UPDATED EVENT:", data.count);
         setUnreadCount(data.count);
       });
 

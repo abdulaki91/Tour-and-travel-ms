@@ -71,8 +71,8 @@ const CompanyNotifications: React.FC = () => {
     },
   });
 
-  const notifications = data?.data?.items || [];
-  const pagination = data?.data?.pagination;
+  const notifications = data?.notifications || [];
+  const pagination = data?.pagination;
 
   const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
@@ -212,7 +212,7 @@ const CompanyNotifications: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total</p>
               <p className="text-2xl font-bold text-gray-900">
-                {pagination?.total || 0}
+                {pagination?.total_items || 0}
               </p>
             </div>
           </div>

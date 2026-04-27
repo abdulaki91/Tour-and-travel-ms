@@ -11,6 +11,7 @@ import {
   updateBookingValidation,
   bookingQueryValidation,
 } from "../validations/bookingValidation.js";
+import { checkBookingEnabled } from "../middlewares/systemSettings.js";
 import Joi from "joi";
 
 const router = express.Router();
@@ -30,6 +31,7 @@ router.post(
   "/",
   authenticate,
   authorize("USER"),
+  checkBookingEnabled,
   validate(createBookingValidation),
   BookingController.createBooking,
 );

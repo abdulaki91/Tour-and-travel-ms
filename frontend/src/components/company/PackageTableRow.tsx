@@ -64,7 +64,7 @@ const PackageTableRow: React.FC<PackageTableRowProps> = ({
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm font-bold text-gray-900">${pkg.price}</div>
+        <div className="text-sm font-bold text-gray-900">{pkg.price} ETB</div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900 font-medium">

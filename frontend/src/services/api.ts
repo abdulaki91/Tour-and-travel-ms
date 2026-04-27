@@ -26,7 +26,7 @@ api.interceptors.request.use(
   },
 );
 
-// Response interceptor to handle auth errors
+// Response interceptor to handle auth errors and maintenance mode
 api.interceptors.response.use(
   (response) => {
     console.log("API Response:", response.status, response.config.url);
@@ -39,11 +39,51 @@ api.interceptors.response.use(
       error.response?.data,
       error.config?.url,
     );
+
+    // Handle maintenance mode (503) - ADMINS ARE NEVER AFFECTED
+    if (
+      error.response?.status === 503 &&
+      error.response?.data?.maintenance_mode === true
+    ) {
+      // Check if user is admin
+      const user = localStorage.getItem("user");
+      let isAdmin = false;
+
+      if (user) {
+        try {
+          const userData = JSON.parse(user);
+          isAdmin = userData.role_name === "ADMIN";
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+        }
+      }
+
+      // CRITICAL: Only handle for non-admin users
+      // Admins should NEVER see maintenance mode
+      if (!isAdmin) {
+        console.log("🔧 Maintenance mode detected (non-admin user)");
+
+        // Dispatch a custom event that the MaintenanceContext can listen to
+        // This is better than reloading the page
+        window.dispatchEvent(
+          new CustomEvent("maintenanceMode", {
+            detail: { enabled: true },
+          }),
+        );
+      } else {
+        console.log(
+          "🔧 Maintenance mode detected but user is ADMIN - continuing normally",
+        );
+      }
+    }
+
+    // Handle unauthorized (401)
     if (error.response?.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
     }
+
     return Promise.reject(error);
   },
 );

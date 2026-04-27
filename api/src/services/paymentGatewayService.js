@@ -153,9 +153,15 @@ export class PaymentGatewayService {
   // Verify Chapa Payment
   static async verifyChapaPayment(transactionId) {
     try {
+      console.log("🔄 Verifying Chapa payment, tx_ref:", transactionId);
       const response = await chapaService.verifyPayment(transactionId);
+      console.log(
+        "📊 Chapa verification response:",
+        JSON.stringify(response, null, 2),
+      );
 
       if (response.success && response.status === "success") {
+        console.log("✅ Chapa payment verified successfully");
         return {
           success: true,
           status: "completed",
@@ -165,6 +171,7 @@ export class PaymentGatewayService {
           chapa_data: response.data,
         };
       } else {
+        console.log("❌ Chapa payment verification failed:", response.status);
         return {
           success: false,
           status: "failed",
@@ -173,7 +180,7 @@ export class PaymentGatewayService {
         };
       }
     } catch (error) {
-      console.error("Chapa verification failed:", error);
+      console.error("❌ Chapa verification error:", error);
       return {
         success: false,
         status: "failed",

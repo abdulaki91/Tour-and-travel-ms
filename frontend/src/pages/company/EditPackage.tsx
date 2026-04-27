@@ -215,7 +215,7 @@ const EditPackage: React.FC = () => {
             />
 
             <Input
-              label="Price per Person ($)"
+              label="Price per Person (ETB)"
               type="number"
               {...register("price", { valueAsNumber: true })}
               error={errors.price?.message}

@@ -11,6 +11,7 @@ import {
   processPaymentValidation,
   paymentQueryValidation,
 } from "../validations/paymentValidation.js";
+import { checkPaymentEnabled } from "../middlewares/systemSettings.js";
 import Joi from "joi";
 
 const router = express.Router();
@@ -33,6 +34,7 @@ router.post(
   "/booking/:bookingId",
   authenticate,
   authorize("USER"),
+  checkPaymentEnabled,
   validateParams(bookingIdValidation),
   validate(createPaymentValidation),
   PaymentController.createPayment,
@@ -42,6 +44,7 @@ router.post(
   "/:id/process",
   authenticate,
   authorize("USER"),
+  checkPaymentEnabled,
   validateParams(idValidation),
   validate(processPaymentValidation),
   PaymentController.processPayment,

@@ -835,32 +835,182 @@ export class AdminService {
 
   // Settings Management
   static async getSettings() {
-    // For now, return default settings. In a real app, these would be stored in a settings table
-    return {
-      site_name: "East Hararghe Tours",
-      site_description:
-        "Discover the beauty of East Hararghe with our curated travel packages",
-      contact_email: "info@easthararghetours.com",
-      contact_phone: "+251-911-123456",
-      maintenance_mode: false,
-      registration_enabled: true,
-      email_notifications: true,
-      sms_notifications: false,
-      max_upload_size: 10, // MB
-      allowed_file_types: ["jpg", "jpeg", "png", "gif", "pdf"],
-    };
+    try {
+      const [settings] = await pool.execute(
+        "SELECT setting_key, setting_value, setting_type FROM system_settings ORDER BY category, setting_key",
+      );
+
+      // Convert database rows to object
+      const settingsObject = {};
+
+      for (const setting of settings) {
+        const { setting_key, setting_value, setting_type } = setting;
+
+        // Parse value based on type
+        let parsedValue = setting_value;
+
+        switch (setting_type) {
+          case "boolean":
+            parsedValue = setting_value === "true";
+            break;
+          case "number":
+            parsedValue = parseFloat(setting_value);
+            break;
+          case "json":
+            try {
+              parsedValue = JSON.parse(setting_value);
+            } catch (e) {
+              parsedValue = setting_value;
+            }
+            break;
+          default:
+            parsedValue = setting_value;
+        }
+
+        settingsObject[setting_key] = parsedValue;
+      }
+
+      return settingsObject;
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      throw error;
+    }
   }
 
   static async updateSettings(settingsData) {
-    // In a real app, you would update a settings table
-    // For now, we'll just return the updated settings
-    const currentSettings = await this.getSettings();
-    const updatedSettings = { ...currentSettings, ...settingsData };
+    const connection = await pool.getConnection();
 
-    // Here you would typically save to database:
-    // await pool.execute('UPDATE settings SET ... WHERE id = 1', [...]);
+    try {
+      await connection.beginTransaction();
 
-    return updatedSettings;
+      for (const [key, value] of Object.entries(settingsData)) {
+        // Get the setting type from database
+        const [existingSetting] = await connection.execute(
+          "SELECT setting_type FROM system_settings WHERE setting_key = ?",
+          [key],
+        );
+
+        if (existingSetting.length === 0) {
+          // Setting doesn't exist, skip it
+          console.warn(`Setting key "${key}" not found in database`);
+          continue;
+        }
+
+        const settingType = existingSetting[0].setting_type;
+
+        // Convert value to string based on type
+        let stringValue;
+
+        switch (settingType) {
+          case "boolean":
+            stringValue = value ? "true" : "false";
+            break;
+          case "number":
+            stringValue = String(value);
+            break;
+          case "json":
+            stringValue = JSON.stringify(value);
+            break;
+          default:
+            stringValue = String(value);
+        }
+
+        // Update the setting
+        await connection.execute(
+          "UPDATE system_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE setting_key = ?",
+          [stringValue, key],
+        );
+      }
+
+      await connection.commit();
+
+      // Return updated settings
+      return await this.getSettings();
+    } catch (error) {
+      await connection.rollback();
+      console.error("Error updating settings:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Get a single setting value
+  static async getSetting(key) {
+    try {
+      const [settings] = await pool.execute(
+        "SELECT setting_value, setting_type FROM system_settings WHERE setting_key = ?",
+        [key],
+      );
+
+      if (settings.length === 0) {
+        return null;
+      }
+
+      const { setting_value, setting_type } = settings[0];
+
+      // Parse value based on type
+      switch (setting_type) {
+        case "boolean":
+          return setting_value === "true";
+        case "number":
+          return parseFloat(setting_value);
+        case "json":
+          try {
+            return JSON.parse(setting_value);
+          } catch (e) {
+            return setting_value;
+          }
+        default:
+          return setting_value;
+      }
+    } catch (error) {
+      console.error(`Error fetching setting "${key}":`, error);
+      return null;
+    }
+  }
+
+  // Update a single setting
+  static async updateSetting(key, value) {
+    try {
+      const [existingSetting] = await pool.execute(
+        "SELECT setting_type FROM system_settings WHERE setting_key = ?",
+        [key],
+      );
+
+      if (existingSetting.length === 0) {
+        throw new Error(`Setting key "${key}" not found`);
+      }
+
+      const settingType = existingSetting[0].setting_type;
+
+      // Convert value to string based on type
+      let stringValue;
+
+      switch (settingType) {
+        case "boolean":
+          stringValue = value ? "true" : "false";
+          break;
+        case "number":
+          stringValue = String(value);
+          break;
+        case "json":
+          stringValue = JSON.stringify(value);
+          break;
+        default:
+          stringValue = String(value);
+      }
+
+      await pool.execute(
+        "UPDATE system_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE setting_key = ?",
+        [stringValue, key],
+      );
+
+      return { success: true, message: "Setting updated successfully" };
+    } catch (error) {
+      console.error(`Error updating setting "${key}":`, error);
+      throw error;
+    }
   }
 
   static async getSystemLogs(filters = {}) {

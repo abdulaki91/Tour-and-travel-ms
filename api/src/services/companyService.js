@@ -96,6 +96,15 @@ export class CompanyService {
       );
 
       await connection.commit();
+
+      // Notify admins about new company registration (async, don't wait)
+      const { NotificationService } = await import("./notificationService.js");
+      NotificationService.notifyAdminsNewCompanyRegistration({
+        company_name,
+        owner_name: newCompany[0].owner_name,
+        owner_email: newCompany[0].user_email,
+      }).catch((error) => console.error("Failed to notify admins:", error));
+
       return newCompany[0];
     } catch (error) {
       await connection.rollback();

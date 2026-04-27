@@ -250,43 +250,64 @@ export class PaymentController {
   // Chapa callback handler (GET request from Chapa redirect)
   static async handleChapaCallback(req, res) {
     try {
+      console.log("🔔 Chapa callback received:", req.query);
       const { tx_ref, status, trx_ref } = req.query;
 
       if (!tx_ref) {
+        console.error("❌ Missing tx_ref in callback");
         return res.redirect(
           `${process.env.FRONTEND_URL}/user/bookings?payment=error&message=Missing transaction reference`,
         );
       }
 
+      console.log("🔍 Looking for payment with tx_ref:", tx_ref);
+
       // Find payment by transaction reference
       const [payments] = await pool.execute(
-        "SELECT id FROM payments WHERE transaction_reference = ? OR gateway_transaction_id = ?",
+        "SELECT id, status FROM payments WHERE transaction_reference = ? OR gateway_transaction_id = ?",
         [tx_ref, tx_ref],
       );
 
       if (payments.length === 0) {
+        console.error("❌ Payment not found for tx_ref:", tx_ref);
         return res.redirect(
           `${process.env.FRONTEND_URL}/user/bookings?payment=error&message=Payment not found`,
         );
       }
 
       const paymentId = payments[0].id;
+      const currentStatus = payments[0].status;
+      console.log(
+        `✅ Found payment ID: ${paymentId}, current status: ${currentStatus}`,
+      );
+
+      // If already completed, just redirect to success
+      if (currentStatus === "completed") {
+        console.log("✅ Payment already completed, redirecting to success");
+        return res.redirect(
+          `${process.env.FRONTEND_URL}/user/bookings?payment=success&ref=${tx_ref}`,
+        );
+      }
 
       // Verify payment with Chapa
+      console.log("🔄 Verifying payment with Chapa...");
       const verifiedPayment = await PaymentService.verifyPayment(paymentId);
+      console.log("✅ Payment verification result:", verifiedPayment.status);
 
       // Redirect based on status
       if (verifiedPayment.status === "completed") {
+        console.log("✅ Payment completed successfully, redirecting...");
         return res.redirect(
           `${process.env.FRONTEND_URL}/user/bookings?payment=success&ref=${tx_ref}`,
         );
       } else {
+        console.log("❌ Payment failed, redirecting...");
         return res.redirect(
           `${process.env.FRONTEND_URL}/user/bookings?payment=failed&ref=${tx_ref}`,
         );
       }
     } catch (error) {
-      console.error("Chapa callback error:", error);
+      console.error("❌ Chapa callback error:", error);
       return res.redirect(
         `${process.env.FRONTEND_URL}/user/bookings?payment=error&message=${encodeURIComponent(error.message)}`,
       );

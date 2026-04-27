@@ -42,7 +42,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB default
+    fileSize: Infinity, // No file size limit
   },
   fileFilter: fileFilter,
 });
@@ -51,12 +51,6 @@ export const uploadPackageImages = upload.array("images", 10); // Max 10 images
 
 export const handleUploadError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        success: false,
-        message: "File size too large. Maximum size is 5MB per file.",
-      });
-    }
     if (error.code === "LIMIT_FILE_COUNT") {
       return res.status(400).json({
         success: false,

@@ -38,6 +38,12 @@ const CompanyDashboard: React.FC = () => {
   const packages = packagesData?.data?.items || [];
   const bookings = bookingsData?.data?.items || [];
 
+  // Calculate total revenue
+  const totalRevenue = bookings.reduce(
+    (sum, b) => sum + (parseFloat(b.total_amount) || 0),
+    0,
+  );
+
   const quickStats = [
     {
       title: "Active Packages",
@@ -61,7 +67,8 @@ const CompanyDashboard: React.FC = () => {
     },
     {
       title: "Monthly Revenue",
-      value: `$${bookings.reduce((sum, b) => sum + (b.total_amount || 0), 0).toLocaleString()}`,
+      value:
+        totalRevenue > 0 ? `${totalRevenue.toLocaleString()} ETB` : "0 ETB",
       total: null,
       icon: CurrencyDollarIcon,
       color: "from-accent-500 to-accent-600",
@@ -359,7 +366,7 @@ const CompanyDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4 font-semibold text-gray-900">
-                        ${booking.total_amount}
+                        {booking.total_amount} ETB
                       </td>
                     </tr>
                   ))}

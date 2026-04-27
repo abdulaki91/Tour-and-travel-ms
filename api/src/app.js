@@ -2,7 +2,6 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import "express-async-errors";
 
@@ -25,6 +24,9 @@ import companyRoutes from "./routes/companyRoutes.js";
 
 // Import socket
 import { initSocket } from "./socket/index.js";
+
+// Import system settings middleware
+import { checkMaintenanceMode } from "./middlewares/systemSettings.js";
 
 // Load environment variables
 dotenv.config();
@@ -51,21 +53,12 @@ app.use(
   }),
 );
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: "Too many requests from this IP, please try again later.",
-  },
-});
-
-app.use("/api/", limiter);
-
 // Body parsing middlewares
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" })); // Increased limit for large images
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// Check maintenance mode for all requests
+app.use(checkMaintenanceMode);
 
 // Serve static files (uploaded images)
 app.use(

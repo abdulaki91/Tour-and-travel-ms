@@ -7,11 +7,17 @@ import {
   loginValidation,
   companyRegistrationValidation,
 } from "../validations/authValidation.js";
+import { checkRegistrationEnabled } from "../middlewares/systemSettings.js";
 
 const router = express.Router();
 
 // Public routes
-router.post("/register", validate(registerValidation), AuthController.register);
+router.post(
+  "/register",
+  checkRegistrationEnabled,
+  validate(registerValidation),
+  AuthController.register,
+);
 router.post("/login", validate(loginValidation), AuthController.login);
 
 // Protected routes

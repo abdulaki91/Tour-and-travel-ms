@@ -276,14 +276,19 @@ export class PaymentService {
   }
 
   static async verifyPayment(paymentId) {
+    console.log("🔍 Starting payment verification for payment ID:", paymentId);
     let payment = await this.getPaymentById(paymentId);
     if (!payment) {
       throw new Error("Payment not found");
     }
 
+    console.log(
+      `📊 Payment status: ${payment.status}, method: ${payment.payment_method}`,
+    );
     let is_newly_verified = false; // Flag to indicate if verification was just performed
 
     if (payment.status === "pending") {
+      console.log("⏳ Payment is pending, initiating verification...");
       let verificationResult;
       try {
         switch (payment.payment_method) {
@@ -299,9 +304,14 @@ export class PaymentService {
               );
             break;
           case "chapa":
+            console.log(
+              "🔄 Verifying Chapa payment with tx_ref:",
+              payment.gateway_transaction_id,
+            );
             verificationResult = await PaymentGatewayService.verifyChapaPayment(
               payment.gateway_transaction_id,
             );
+            console.log("📊 Chapa verification result:", verificationResult);
             break;
           case "bank_transfer":
             // Bank transfers now auto-verify for demo purposes
@@ -322,19 +332,25 @@ export class PaymentService {
 
         // Process payment based on verification result
         const status = verificationResult.success ? "completed" : "failed";
+        console.log(`✅ Processing payment with status: ${status}`);
         payment = await this.processPayment(
           paymentId,
           status,
           verificationResult,
         ); // Update payment object with processed status
         is_newly_verified = true; // Mark that verification just happened
+        console.log("✅ Payment processed successfully");
       } catch (error) {
-        console.error("Payment verification failed:", error);
+        console.error("❌ Payment verification failed:", error);
         payment = await this.processPayment(paymentId, "failed", {
           error: error.message,
         });
         is_newly_verified = true; // Mark as failed verification
       }
+    } else {
+      console.log(
+        `ℹ️ Payment already ${payment.status}, skipping verification`,
+      );
     }
 
     // Generate JWT if payment is completed (either newly or already)

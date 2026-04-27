@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { bookingService } from "../../services/bookings";
+import { paymentService } from "../../services/payments";
 import type { BookingFilters, BookingStatus } from "../../types";
 import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -9,8 +10,10 @@ import EmptyState from "../../components/ui/EmptyState";
 import BookingFiltersComponent from "../../components/user/BookingFilters";
 import BookingCard from "../../components/user/BookingCard";
 import Pagination from "../../components/common/Pagination";
+import toast from "react-hot-toast";
 
 const UserBookings: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<BookingFilters>({
     page: 1,
     limit: 10,
@@ -21,6 +24,57 @@ const UserBookings: React.FC = () => {
     queryKey: ["user-bookings", filters],
     queryFn: () => bookingService.getUserBookings(filters),
   });
+
+  // Auto-verify pending Chapa payments when returning from Chapa
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment");
+    const txRef = searchParams.get("ref");
+
+    if (paymentStatus === "success" && txRef) {
+      toast.success("Payment completed successfully!");
+      // Refetch bookings to get updated status
+      setTimeout(() => {
+        refetch();
+      }, 1500);
+    } else if (paymentStatus === "failed") {
+      toast.error("Payment failed. Please try again.");
+    } else if (paymentStatus === "error") {
+      const message = searchParams.get("message") || "An error occurred";
+      toast.error(`Payment error: ${message}`);
+    }
+
+    // Auto-verify any pending Chapa payments on page load
+    if (data?.data?.items) {
+      const pendingChapaBookings = data.data.items.filter(
+        (booking: any) =>
+          booking.payment_status === "pending" &&
+          booking.payment_method === "chapa" &&
+          booking.payment_id,
+      );
+
+      if (pendingChapaBookings.length > 0) {
+        console.log(
+          "🔄 Found",
+          pendingChapaBookings.length,
+          "pending Chapa payment(s), auto-verifying...",
+        );
+        pendingChapaBookings.forEach((booking: any) => {
+          paymentService
+            .verifyPayment(booking.payment_id)
+            .then((response) => {
+              if (response.data.status === "completed") {
+                console.log("✅ Payment verified:", booking.payment_id);
+                toast.success("Payment verified successfully!");
+                refetch();
+              }
+            })
+            .catch((error) => {
+              console.error("❌ Auto-verification failed:", error);
+            });
+        });
+      }
+    }
+  }, [searchParams, data, refetch]);
 
   const getStatusVariant = (status: BookingStatus) => {
     switch (status) {

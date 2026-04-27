@@ -240,9 +240,19 @@ export class PackageService {
       if (allowedFields.includes(key)) {
         updateFields.push(`${key} = ?`);
         if (key === "itinerary" && updateData[key]) {
-          updateValues.push(JSON.stringify(updateData[key]));
+          // Check if it's already a string (from FormData) or needs stringifying
+          const itineraryValue =
+            typeof updateData[key] === "string"
+              ? updateData[key]
+              : JSON.stringify(updateData[key]);
+          updateValues.push(itineraryValue);
         } else if (key === "images" && updateData[key]) {
-          updateValues.push(JSON.stringify(updateData[key]));
+          // Check if it's already a string (from FormData) or needs stringifying
+          const imagesValue =
+            typeof updateData[key] === "string"
+              ? updateData[key]
+              : JSON.stringify(updateData[key]);
+          updateValues.push(imagesValue);
         } else {
           updateValues.push(updateData[key]);
         }
@@ -265,7 +275,41 @@ export class PackageService {
       throw new Error("Package not found or unauthorized");
     }
 
-    return await this.getPackageById(id);
+    // Fetch the updated package without the is_active filter for company's own packages
+    const [packages] = await pool.execute(
+      `SELECT 
+        p.*,
+        c.company_name,
+        c.description as company_description,
+        c.phone as company_phone,
+        c.email as company_email,
+        c.website as company_website,
+        c.logo as company_logo,
+        COALESCE(AVG(r.rating), 0) as average_rating,
+        COUNT(r.id) as review_count
+      FROM packages p
+      JOIN companies c ON p.company_id = c.id
+      LEFT JOIN reviews r ON p.id = r.package_id
+      WHERE p.id = ?
+      GROUP BY p.id`,
+      [id],
+    );
+
+    if (packages.length === 0) {
+      return null;
+    }
+
+    const packageData = packages[0];
+
+    return {
+      ...packageData,
+      itinerary: packageData.itinerary
+        ? JSON.parse(packageData.itinerary)
+        : null,
+      images: packageData.images ? JSON.parse(packageData.images) : [],
+      average_rating: parseFloat(packageData.average_rating),
+      review_count: parseInt(packageData.review_count),
+    };
   }
 
   static async deletePackage(id, companyId) {

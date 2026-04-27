@@ -106,15 +106,17 @@ const PaymentPage: React.FC = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
             <span className="font-medium text-gray-700">Package Price</span>
-            <span className="font-bold text-gray-900">$XXX.XX</span>
+            <span className="font-bold text-gray-900">XXX.XX ETB</span>
           </div>
           <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
             <span className="font-medium text-gray-700">Service Fee</span>
-            <span className="font-bold text-gray-900">$XX.XX</span>
+            <span className="font-bold text-gray-900">XX.XX ETB</span>
           </div>
           <div className="flex justify-between items-center p-4 bg-primary-50 rounded-xl border-2 border-primary-200">
             <span className="font-bold text-primary-900">Total Amount</span>
-            <span className="font-bold text-2xl text-primary-600">$XXX.XX</span>
+            <span className="font-bold text-2xl text-primary-600">
+              XXX.XX ETB
+            </span>
           </div>
         </div>
       </div>

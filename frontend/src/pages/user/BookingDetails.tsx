@@ -107,7 +107,8 @@ const BookingDetails: React.FC = () => {
   const showVerifyButton =
     latestPayment &&
     latestPayment.status === "pending" &&
-    booking.status !== "cancelled";
+    booking.status !== "cancelled" &&
+    latestPayment.payment_method === "bank_transfer"; // Only show for bank transfers
 
   const showReceiptButton =
     latestPayment && latestPayment.status === "completed";

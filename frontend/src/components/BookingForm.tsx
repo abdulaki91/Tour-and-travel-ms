@@ -137,11 +137,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Price per Person:</span>
-              <span>${pkg.price}</span>
+              <span>{pkg.price} ETB</span>
             </div>
             <div className="flex justify-between font-semibold text-lg border-t pt-2">
               <span>Total Amount:</span>
-              <span>${totalAmount}</span>
+              <span>{totalAmount} ETB</span>
             </div>
           </div>
         </div>
@@ -270,7 +270,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </p>
           </div>
           <p className="mt-2 text-lg font-bold text-gray-900">
-            ${pkg.price}{" "}
+            {pkg.price} ETB{" "}
             <span className="text-sm font-normal text-gray-500">
               per person
             </span>
@@ -305,7 +305,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         <div className="flex justify-between items-center">
           <span className="font-medium">Total Amount:</span>
           <span className="text-xl font-bold text-primary-600">
-            ${totalAmount}
+            {totalAmount} ETB
           </span>
         </div>
         <p className="text-sm text-gray-500 mt-1">

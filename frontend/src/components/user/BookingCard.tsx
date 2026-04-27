@@ -63,7 +63,8 @@ const BookingCard: React.FC<BookingCardProps> = ({
   const showVerifyButton =
     booking.payment_status === "pending" &&
     booking.payment_id &&
-    booking.status !== "cancelled";
+    booking.status !== "cancelled" &&
+    booking.payment_method === "bank_transfer"; // Only show for bank transfers
 
   const showReceiptButton = booking.payment_status === "completed";
 
@@ -162,7 +163,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
           <div className="text-center lg:text-right">
             <div className="text-3xl font-bold text-primary-600 mb-4 font-display">
-              ${booking.total_amount}
+              {booking.total_amount} ETB
             </div>
             <div className="space-y-3">
               <Link to={`/user/bookings/${booking.id}`}>

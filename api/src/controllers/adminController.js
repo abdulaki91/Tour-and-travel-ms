@@ -1,4 +1,5 @@
 import { AdminService } from "../services/adminService.js";
+import { clearSettingsCache } from "../middlewares/systemSettings.js";
 
 export class AdminController {
   static async getDashboard(req, res) {
@@ -355,6 +356,9 @@ export class AdminController {
       const settingsData = req.body;
 
       const updatedSettings = await AdminService.updateSettings(settingsData);
+
+      // Clear settings cache so new settings take effect immediately
+      clearSettingsCache();
 
       res.status(200).json({
         success: true,

@@ -165,7 +165,7 @@ const PackageDetailsPage: React.FC = () => {
 
                 <div className="text-right">
                   <div className="text-3xl md:text-4xl font-bold text-white">
-                    ${pkg.price}
+                    {pkg.price} ETB
                   </div>
                   <div className="text-white/80">per person</div>
                 </div>
@@ -473,7 +473,7 @@ const PackageDetailsPage: React.FC = () => {
               <div className="card-content">
                 <div className="text-center mb-8">
                   <div className="text-4xl font-bold text-gradient-primary mb-2">
-                    ${pkg.price}
+                    {pkg.price} ETB
                   </div>
                   <div className="text-slate-500">per person</div>
                 </div>
